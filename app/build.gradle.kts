@@ -38,6 +38,7 @@ android {
         viewBinding = true
     }
 }
+
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
     implementation(libs.androidx.core.ktx)
