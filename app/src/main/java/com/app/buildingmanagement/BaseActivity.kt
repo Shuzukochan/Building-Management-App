@@ -8,11 +8,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 open class BaseActivity : AppCompatActivity() {
     private lateinit var pb:Dialog
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
         enableEdgeToEdge()
         setContentView(R.layout.activity_base)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
