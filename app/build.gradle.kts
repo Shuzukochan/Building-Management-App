@@ -45,6 +45,9 @@ dependencies {
     implementation (platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation ("com.google.firebase:firebase-auth-ktx")
 
+    implementation ("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

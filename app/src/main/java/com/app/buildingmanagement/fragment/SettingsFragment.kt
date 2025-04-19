@@ -10,24 +10,47 @@ import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.SignInActivity
 import com.app.buildingmanagement.databinding.FragmentSettingsBinding
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 
 class SettingsFragment : Fragment() {
 
     private var binding: FragmentSettingsBinding? = null
     private lateinit var auth: FirebaseAuth
 
-
     override fun onCreateView(
-
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentSettingsBinding.inflate(inflater, container, false)
         auth = FirebaseAuth.getInstance()
         val user = auth.currentUser
-        val phone = user?.phoneNumber?.replace("+84", "0")
+        val phone = user?.phoneNumber
 
-        binding?.tvPhoneNumber?.text = phone ?: "Chưa có số điện thoại"
+        binding?.tvPhoneNumber?.text = phone?.replace("+84", "0") ?: "Chưa có số điện thoại"
+
+        if (phone != null) {
+            val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
+
+            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    var foundRoom: String? = null
+                    for (roomSnapshot in snapshot.children) {
+                        val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInRoom == phone) {
+                            foundRoom = roomSnapshot.key
+                            break
+                        }
+                    }
+                    binding?.tvRoomNumber?.text = foundRoom?.let { "Phòng $it" } ?: "Không xác định phòng"
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    binding?.tvRoomNumber?.text = "Lỗi kết nối"
+                }
+            })
+        } else {
+            binding?.tvRoomNumber?.text = "Không xác định"
+        }
 
         binding?.btnSignOut?.setOnClickListener {
             showLogoutConfirmation()

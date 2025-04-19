@@ -1,30 +1,31 @@
 package com.app.buildingmanagement.fragment
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
-import com.app.buildingmanagement.WebPayActivity
 import com.app.buildingmanagement.databinding.FragmentHomeBinding
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
+    private lateinit var auth: FirebaseAuth
     private lateinit var database: FirebaseDatabase
-    private lateinit var meterRef: DatabaseReference
     private var valueEventListener: ValueEventListener? = null
+    private var roomsRef: DatabaseReference? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
-        meterRef = database.getReference("meter")
+        roomsRef = database.getReference("rooms")
     }
 
     override fun onCreateView(
@@ -38,42 +39,74 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Firebase realtime update
-        valueEventListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val electricity = snapshot.child("electricity").getValue(Int::class.java) ?: -1
-                val water = snapshot.child("water").getValue(Int::class.java) ?: -1
+        val currentMonth = SimpleDateFormat("M", Locale.getDefault()).format(Date())
+        binding.tvUsedMonth.text = "Tiêu thụ tháng $currentMonth"
+        super.onViewCreated(view, savedInstanceState)
 
-                binding.tvElectric.text = "Điện: $electricity kWh"
-                binding.tvWater.text = "Nước: $water m³"
+        val phone = auth.currentUser?.phoneNumber
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val today = dateFormat.format(Date())
+        val yearMonthFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+        val yearMonth = yearMonthFormat.format(Date())
+
+        if (phone != null) {
+            valueEventListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    var electric = -1
+                    var water = -1
+                    var electricStart = -1
+                    var waterStart = -1
+
+                    fun findEarliestInMonth(historySnapshot: DataSnapshot, yearMonth: String): Int? {
+                        val keys = historySnapshot.children.mapNotNull { it.key }
+                        val matchingDates = keys.filter { it.startsWith(yearMonth) }.sorted()
+                        if (matchingDates.isNotEmpty()) {
+                            return historySnapshot.child(matchingDates.first()).getValue()?.toString()?.toIntOrNull()
+                        }
+                        return null
+                    }
+
+                    for (roomSnapshot in snapshot.children) {
+                        val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInRoom == phone) {
+                            electric = roomSnapshot.child("electric").getValue(Long::class.java)?.toInt() ?: -1
+                            water = roomSnapshot.child("water").getValue(Long::class.java)?.toInt() ?: -1
+
+                            roomSnapshot.ref.child("electricHistory").child(today).setValue(electric)
+                            roomSnapshot.ref.child("waterHistory").child(today).setValue(water)
+
+                            electricStart = findEarliestInMonth(roomSnapshot.child("electricHistory"), yearMonth) ?: electric
+                            waterStart = findEarliestInMonth(roomSnapshot.child("waterHistory"), yearMonth) ?: water
+
+                            break
+                        }
+                    }
+
+                    val electricUsed = if (electricStart != -1) electric - electricStart else 0
+                    val waterUsed = if (waterStart != -1) water - waterStart else 0
+
+                    binding.tvElectric.text = "Điện: $electric kWh"
+                    binding.tvWater.text = "Nước: $water m³"
+                    binding.tvElectricUsed.text = "Đã dùng: $electricUsed kWh"
+                    binding.tvWaterUsed.text = "Đã dùng: $waterUsed m³"
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    binding.tvElectric.text = "Lỗi"
+                    binding.tvWater.text = "Lỗi"
+                    binding.tvElectricUsed.text = "Lỗi"
+                    binding.tvWaterUsed.text = "Lỗi"
+                }
             }
 
-            override fun onCancelled(error: DatabaseError) {}
+            roomsRef?.addValueEventListener(valueEventListener!!)
         }
-
-        meterRef.addValueEventListener(valueEventListener!!)
-
-        // Nút thanh toán bằng OCB (mở app)
-        binding.btnPay.setOnClickListener {
-            val amount = binding.edtAmount.text.toString().toIntOrNull()
-
-            if (amount == null || amount <= 0) {
-                Toast.makeText(requireContext(), "Vui lòng nhập số tiền hợp lệ", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val url = "https://dl.vietqr.io/pay?app=ocb&ba=0561000629874@vcb&am=$amount&tn=ck"
-            val intent = Intent(requireContext(), WebPayActivity::class.java)
-            intent.putExtra("url", url)
-            startActivity(intent)
-        }
-
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         valueEventListener?.let {
-            meterRef.removeEventListener(it)
+            roomsRef?.removeEventListener(it)
         }
         _binding = null
     }

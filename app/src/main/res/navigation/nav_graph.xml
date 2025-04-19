@@ -11,7 +11,7 @@
 
     <fragment
         android:id="@+id/nav_location"
-        android:name="com.app.buildingmanagement.fragment.LocationFragment"
+        android:name="com.app.buildingmanagement.fragment.ChartFragment"
         android:label="Location" />
 
     <fragment
