@@ -89,6 +89,49 @@ class ChartFragment : Fragment() {
         loadChartData()
     }
 
+    private fun setupDatePicker(editText: EditText, isElectric: Boolean) {
+        editText.setOnClickListener {
+            val mode = if (isElectric) selectedElectricMode else selectedWaterMode
+
+            val calendar = Calendar.getInstance()
+
+            if (mode == "Tháng") {
+                val text = editText.text.toString()
+                val parts = text.split("/")
+                if (parts.size == 2) {
+                    val selectedMonth = parts[0].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
+                    val selectedYear = parts[1].toIntOrNull() ?: calendar.get(Calendar.YEAR)
+
+                    MonthPickerDialog(
+                        context = requireContext(),
+                        selectedMonth = selectedMonth,
+                        selectedYear = selectedYear
+                    ) { pickedMonth, pickedYear ->
+                        calendar.set(Calendar.YEAR, pickedYear)
+                        calendar.set(Calendar.MONTH, pickedMonth)
+                        calendar.set(Calendar.DAY_OF_MONTH, 1)
+                        editText.setText(displayMonthFormatter.format(calendar.time))
+                        validateAndLoadChart(calendar.time, isElectric, mode, editText)
+                    }.show()
+                }
+            } else {
+                val text = editText.text.toString()
+                val date = try {
+                    displayDateFormatter.parse(text)
+                } catch (e: Exception) {
+                    null
+                }
+                if (date != null) calendar.time = date
+
+                DatePickerDialog(requireContext(), { _, year, month, day ->
+                    calendar.set(year, month, day)
+                    editText.setText(displayDateFormatter.format(calendar.time))
+                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+            }
+        }
+    }
+
     private fun setDefaultRange(isElectric: Boolean) {
         val calendar = Calendar.getInstance()
         val toDate = calendar.time
@@ -118,34 +161,6 @@ class ChartFragment : Fragment() {
         }
     }
 
-    private fun setupDatePicker(editText: EditText, isElectric: Boolean) {
-        editText.setOnClickListener {
-            val calendar = Calendar.getInstance()
-            val mode = if (isElectric) selectedElectricMode else selectedWaterMode
-
-            if (mode == "Tháng") {
-                // Hiển thị MonthPickerDialog
-                MonthPickerDialog(
-                    context = requireContext(),
-                    selectedMonth = calendar.get(Calendar.MONTH),
-                    selectedYear = calendar.get(Calendar.YEAR)
-                ) { selectedMonth, selectedYear ->
-                    calendar.set(Calendar.YEAR, selectedYear)
-                    calendar.set(Calendar.MONTH, selectedMonth)
-                    calendar.set(Calendar.DAY_OF_MONTH, 1)
-                    editText.setText(displayMonthFormatter.format(calendar.time))
-                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
-                }.show()
-            } else {
-                // Hiển thị DatePickerDialog (Ngày)
-                DatePickerDialog(requireContext(), { _, year, month, day ->
-                    calendar.set(year, month, day)
-                    editText.setText(displayDateFormatter.format(calendar.time))
-                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
-                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
-            }
-        }
-    }
     private fun validateAndLoadChart(selectedDate: Date, isElectric: Boolean, mode: String, editText: EditText) {
         try {
             val from = if (isElectric) binding.fromDateElectric.text.toString() else binding.fromDateWater.text.toString()
@@ -184,8 +199,6 @@ class ChartFragment : Fragment() {
             Toast.makeText(requireContext(), "Lỗi khi xử lý ngày tháng", Toast.LENGTH_SHORT).show()
         }
     }
-
-
 
     private fun parseDateInput(value: String, mode: String): Date? {
         return try {

@@ -8,6 +8,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import android.widget.*
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
@@ -17,8 +18,8 @@ import com.google.android.material.color.MaterialColors
 
 class MonthPickerDialog(
     private val context: Context,
-    private var selectedMonth: Int = 0,
-    private var selectedYear: Int = 2024,
+    private var selectedMonth: Int,
+    private var selectedYear: Int,
     private val onMonthYearSelected: (month: Int, year: Int) -> Unit
 ) {
 
@@ -28,12 +29,6 @@ class MonthPickerDialog(
         "Th5", "Th6", "Th7", "Th8",
         "Th9", "Th10", "Th11", "Th12"
     )
-
-    private val colorPrimary: Int by lazy {
-        val typedValue = TypedValue()
-        context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedValue, true)
-        typedValue.data
-    }
 
     fun show() {
         val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_month_picker, null)
@@ -51,32 +46,58 @@ class MonthPickerDialog(
         dialog = builder.create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
-
-
+        var currentViewYear = selectedYear
 
         fun updateHeader() {
-            txtYear.text = selectedYear.toString()
+            txtYear.text = currentViewYear.toString()
             titleText.text = "Tháng ${selectedMonth + 1} năm $selectedYear"
         }
 
-        updateHeader()
+        fun updateMonthAdapter() {
+            recyclerView.adapter = MonthAdapter(
+                selected = selectedMonth,
+                yearToHighlight = selectedYear,
+                currentViewYear = currentViewYear
+            ) { month ->
+                selectedMonth = month
+                selectedYear = currentViewYear
+                updateHeader()
+                updateMonthAdapter()
+            }
+        }
 
-        val adapter = MonthAdapter(selectedMonth) { month ->
-            selectedMonth = month
-            updateHeader()
+        fun animateRecycler(direction: String) {
+            val distance = recyclerView.width.toFloat()
+            val toX = if (direction == "left") -distance else distance
+
+            recyclerView.animate()
+                .translationX(toX)
+                .setDuration(100)
+                .withEndAction {
+                    recyclerView.translationX = -toX
+                    updateMonthAdapter()
+                    recyclerView.animate()
+                        .translationX(0f)
+                        .setDuration(100)
+                        .start()
+                }
+                .start()
         }
 
         recyclerView.layoutManager = GridLayoutManager(context, 4)
-        recyclerView.adapter = adapter
+        updateHeader()
+        updateMonthAdapter()
 
         btnPrev.setOnClickListener {
-            selectedYear--
-            updateHeader()
+            currentViewYear--
+            txtYear.text = currentViewYear.toString()
+            animateRecycler("right")
         }
 
         btnNext.setOnClickListener {
-            selectedYear++
-            updateHeader()
+            currentViewYear++
+            txtYear.text = currentViewYear.toString()
+            animateRecycler("left")
         }
 
         btnCancel.setOnClickListener {
@@ -88,17 +109,16 @@ class MonthPickerDialog(
             dialog.dismiss()
         }
 
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
         dialog.show()
-
-        val width = (context.resources.displayMetrics.widthPixels * 0.60).toInt() // Hoặc 320.dp.toPx()
+        val width = (context.resources.displayMetrics.widthPixels * 0.60).toInt()
         dialog.window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
         dialog.window?.setDimAmount(0.3f)
     }
 
     private inner class MonthAdapter(
         private var selected: Int,
+        private val yearToHighlight: Int,
+        private val currentViewYear: Int,
         private val onClick: (Int) -> Unit
     ) : RecyclerView.Adapter<MonthAdapter.MonthViewHolder>() {
 
@@ -118,20 +138,15 @@ class MonthPickerDialog(
         override fun onBindViewHolder(holder: MonthViewHolder, position: Int) {
             holder.textView.text = months[position]
 
-            val context = holder.textView.context
-
-            if (position == selected) {
+            if (position == selected && currentViewYear == yearToHighlight) {
                 holder.textView.setBackgroundResource(R.drawable.bg_month_selected)
-
                 val textColor = MaterialColors.getColor(holder.textView, com.google.android.material.R.attr.colorOnSecondary)
                 holder.textView.setTextColor(textColor)
             } else {
                 holder.textView.setBackgroundResource(android.R.color.transparent)
-
                 val textColor = MaterialColors.getColor(holder.textView, com.google.android.material.R.attr.colorOnSurface)
                 holder.textView.setTextColor(textColor)
             }
-
 
             holder.textView.setOnClickListener {
                 val old = selected
@@ -141,7 +156,6 @@ class MonthPickerDialog(
                 onClick(position)
             }
         }
-
 
         override fun getItemCount(): Int = months.size
     }
