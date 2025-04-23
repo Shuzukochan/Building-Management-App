@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.databinding.FragmentChartBinding
+import com.app.buildingmanagement.dialog.MonthPickerDialog
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -120,55 +121,71 @@ class ChartFragment : Fragment() {
     private fun setupDatePicker(editText: EditText, isElectric: Boolean) {
         editText.setOnClickListener {
             val calendar = Calendar.getInstance()
-            DatePickerDialog(requireContext(), { _, year, month, day ->
-                calendar.set(year, month, day)
-                val mode = if (isElectric) selectedElectricMode else selectedWaterMode
-                if (mode == "Ngày") {
-                    editText.setText(displayDateFormatter.format(calendar.time))
-                } else {
+            val mode = if (isElectric) selectedElectricMode else selectedWaterMode
+
+            if (mode == "Tháng") {
+                // Hiển thị MonthPickerDialog
+                MonthPickerDialog(
+                    context = requireContext(),
+                    selectedMonth = calendar.get(Calendar.MONTH),
+                    selectedYear = calendar.get(Calendar.YEAR)
+                ) { selectedMonth, selectedYear ->
+                    calendar.set(Calendar.YEAR, selectedYear)
+                    calendar.set(Calendar.MONTH, selectedMonth)
                     calendar.set(Calendar.DAY_OF_MONTH, 1)
                     editText.setText(displayMonthFormatter.format(calendar.time))
-                }
-
-                try {
-                    val from = if (isElectric) binding.fromDateElectric.text.toString() else binding.fromDateWater.text.toString()
-                    val to = if (isElectric) binding.toDateElectric.text.toString() else binding.toDateWater.text.toString()
-
-                    val fromDate = if (mode == "Ngày") displayDateFormatter.parse(from) else displayMonthFormatter.parse(from)
-                    val toDate = if (mode == "Ngày") displayDateFormatter.parse(to) else displayMonthFormatter.parse(to)
-
-                    if (fromDate == null || toDate == null) {
-                        Toast.makeText(requireContext(), "Không thể phân tích ngày hợp lệ", Toast.LENGTH_SHORT).show()
-                        return@DatePickerDialog
-                    }
-
-                    if (fromDate.after(toDate)) {
-                        Toast.makeText(requireContext(), "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc", Toast.LENGTH_SHORT).show()
-                        return@DatePickerDialog
-                    }
-
-                    val diff = if (mode == "Ngày") {
-                        ((toDate.time - fromDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1
-                    } else {
-                        val calFrom = Calendar.getInstance().apply { time = fromDate }
-                        val calTo = Calendar.getInstance().apply { time = toDate }
-                        val yearDiff = calTo.get(Calendar.YEAR) - calFrom.get(Calendar.YEAR)
-                        val monthDiff = calTo.get(Calendar.MONTH) - calFrom.get(Calendar.MONTH)
-                        yearDiff * 12 + monthDiff + 1
-                    }
-
-                    if (diff > 7) {
-                        Toast.makeText(requireContext(), "Khoảng thời gian không được vượt quá 7 ${if (mode == "Ngày") "ngày" else "tháng"}", Toast.LENGTH_SHORT).show()
-                    } else {
-                        loadChartData()
-                    }
-                } catch (e: ParseException) {
-                    e.printStackTrace()
-                    Toast.makeText(requireContext(), "Lỗi khi xử lý ngày tháng", Toast.LENGTH_SHORT).show()
-                }
-            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
+                }.show()
+            } else {
+                // Hiển thị DatePickerDialog (Ngày)
+                DatePickerDialog(requireContext(), { _, year, month, day ->
+                    calendar.set(year, month, day)
+                    editText.setText(displayDateFormatter.format(calendar.time))
+                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+            }
         }
     }
+    private fun validateAndLoadChart(selectedDate: Date, isElectric: Boolean, mode: String, editText: EditText) {
+        try {
+            val from = if (isElectric) binding.fromDateElectric.text.toString() else binding.fromDateWater.text.toString()
+            val to = if (isElectric) binding.toDateElectric.text.toString() else binding.toDateWater.text.toString()
+
+            val fromDate = if (mode == "Ngày") displayDateFormatter.parse(from) else displayMonthFormatter.parse(from)
+            val toDate = if (mode == "Ngày") displayDateFormatter.parse(to) else displayMonthFormatter.parse(to)
+
+            if (fromDate == null || toDate == null) {
+                Toast.makeText(requireContext(), "Không thể phân tích ngày hợp lệ", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            if (fromDate.after(toDate)) {
+                Toast.makeText(requireContext(), "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val diff = if (mode == "Ngày") {
+                ((toDate.time - fromDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1
+            } else {
+                val calFrom = Calendar.getInstance().apply { time = fromDate }
+                val calTo = Calendar.getInstance().apply { time = toDate }
+                val yearDiff = calTo.get(Calendar.YEAR) - calFrom.get(Calendar.YEAR)
+                val monthDiff = calTo.get(Calendar.MONTH) - calFrom.get(Calendar.MONTH)
+                yearDiff * 12 + monthDiff + 1
+            }
+
+            if (diff > 7) {
+                Toast.makeText(requireContext(), "Khoảng thời gian không được vượt quá 7 ${if (mode == "Ngày") "ngày" else "tháng"}", Toast.LENGTH_SHORT).show()
+            } else {
+                loadChartData()
+            }
+        } catch (e: ParseException) {
+            e.printStackTrace()
+            Toast.makeText(requireContext(), "Lỗi khi xử lý ngày tháng", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
 
     private fun parseDateInput(value: String, mode: String): Date? {
         return try {
