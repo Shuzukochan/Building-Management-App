@@ -309,30 +309,43 @@ class ChartFragment : Fragment() {
 
         roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                val electricMap = mutableMapOf<String, Int>()
+                val waterMap = mutableMapOf<String, Int>()
+
                 for (roomSnapshot in snapshot.children) {
                     val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
                     if (phoneInRoom == phone) {
-                        val electricHistory = roomSnapshot.child("electricHistory")
-                        val waterHistory = roomSnapshot.child("waterHistory")
+                        val nodesSnapshot = roomSnapshot.child("nodes")
 
-                        val electricMap = electricHistory.children.associate {
-                            it.key!! to (it.getValue(Int::class.java) ?: 0)
+                        for (nodeSnapshot in nodesSnapshot.children) {
+                            val historySnapshot = nodeSnapshot.child("history")
+                            for (dateSnapshot in historySnapshot.children) {
+                                val dateKey = dateSnapshot.key ?: continue
+
+                                val waterValue = dateSnapshot.child("water").getValue(Int::class.java)
+                                val electricValue = dateSnapshot.child("electric").getValue(Int::class.java)
+
+                                if (waterValue != null) {
+                                    waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
+                                }
+                                if (electricValue != null) {
+                                    electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
+                                }
+                            }
                         }
 
-                        val waterMap = waterHistory.children.associate {
-                            it.key!! to (it.getValue(Int::class.java) ?: 0)
-                        }
-
-                        drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
-                        drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
-                        break
+                        break  // chỉ lấy phòng khớp phone đầu tiên
                     }
                 }
+
+                drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
+                drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
             }
 
             override fun onCancelled(error: DatabaseError) {}
         })
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
