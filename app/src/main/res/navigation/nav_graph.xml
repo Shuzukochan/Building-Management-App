@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@+id/nav_home">
+
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="com.app.buildingmanagement.fragment.HomeFragment"
+        android:label="Home" />
+
+    <fragment
+        android:id="@+id/nav_location"
+        android:name="com.app.buildingmanagement.fragment.ChartFragment"
+        android:label="Location" />
+
+    <fragment
+        android:id="@+id/nav_dashboard"
+        android:name="com.app.buildingmanagement.fragment.DashboardFragment"
+        android:label="Dashboard" />
+
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="com.app.buildingmanagement.fragment.SettingsFragment"
+        android:label="Settings" />
+</navigation>
+
