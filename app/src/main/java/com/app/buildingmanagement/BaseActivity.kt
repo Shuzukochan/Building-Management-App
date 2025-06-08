@@ -23,6 +23,7 @@ open class BaseActivity : AppCompatActivity() {
             insets
         }
     }
+
     fun showProgressBar()
     {
         pb = Dialog(this)

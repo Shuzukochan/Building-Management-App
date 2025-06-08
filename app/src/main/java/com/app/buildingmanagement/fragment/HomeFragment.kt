@@ -51,6 +51,9 @@ class HomeFragment : Fragment() {
                     var latestWater = -1
                     var startOfMonthElectric: Int? = null
                     var startOfMonthWater: Int? = null
+                    var endOfMonthElectric: Int? = null
+                    var endOfMonthWater: Int? = null
+
 
                     for (roomSnapshot in snapshot.children) {
                         val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
@@ -73,21 +76,38 @@ class HomeFragment : Fragment() {
 
                                 if (monthDates.isNotEmpty()) {
                                     val firstDay = monthDates.first()
-                                    val firstDaySnapshot = historySnapshot.child(firstDay)
+                                    val lastDay = monthDates.last()
 
-                                    val firstWater = firstDaySnapshot.child("water").getValue(Long::class.java)?.toInt()
-                                    val firstElectric = firstDaySnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                                    val firstSnapshot = historySnapshot.child(firstDay)
+                                    val lastSnapshot = historySnapshot.child(lastDay)
 
-                                    if (firstWater != null && startOfMonthWater == null) startOfMonthWater = firstWater
-                                    if (firstElectric != null && startOfMonthElectric == null) startOfMonthElectric = firstElectric
+                                    val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                                    val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+
+                                    val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                                    val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
+
+                                    if (firstElectric != null && lastElectric != null) {
+                                        startOfMonthElectric = firstElectric
+                                        endOfMonthElectric = lastElectric
+                                    }
+
+                                    if (firstWater != null && lastWater != null) {
+                                        startOfMonthWater = firstWater
+                                        endOfMonthWater = lastWater
+                                    }
                                 }
                             }
                             break
                         }
                     }
 
-                    val electricUsed = if (latestElectric != -1 && startOfMonthElectric != null) latestElectric - startOfMonthElectric else 0
-                    val waterUsed = if (latestWater != -1 && startOfMonthWater != null) latestWater - startOfMonthWater else 0
+                    val electricUsed = if (startOfMonthElectric != null && endOfMonthElectric != null)
+                        endOfMonthElectric - startOfMonthElectric else 0
+
+                    val waterUsed = if (startOfMonthWater != null && endOfMonthWater != null)
+                        endOfMonthWater - startOfMonthWater else 0
+
 
                     binding.tvElectric.text = if (latestElectric != -1) "Điện hiện tại: $latestElectric kWh" else "Điện hiện tại: N/A"
                     binding.tvWater.text = if (latestWater != -1) "Nước hiện tại: $latestWater m³" else "Nước hiện tại: N/A"
