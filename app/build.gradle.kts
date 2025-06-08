@@ -62,6 +62,7 @@ android {
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.webkit:webkit:1.14.0")
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)

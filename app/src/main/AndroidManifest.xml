@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -13,17 +14,37 @@
         android:roundIcon="@mipmap/hcmute_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BuildingManagement"
+        android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
 
         <activity
             android:name=".WebPayActivity"
-            android:exported="false" />
+            android:exported="true"
+            android:launchMode="singleTop">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="myapp" android:host="payment-success" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="myapp" android:host="payment-cancel" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".OtpActivity"
             android:exported="false" />
+
         <activity
             android:name=".BaseActivity"
             android:exported="false" />
+
         <activity
             android:name=".SignInActivity"
             android:exported="true">
@@ -35,29 +56,7 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
-
-            <!-- Deeplink cho thanh toán thành công -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="myapp"
-                    android:host="payment-success" />
-            </intent-filter>
-
-            <!-- Deeplink cho huỷ thanh toán -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="myapp"
-                    android:host="payment-cancel" />
-            </intent-filter>
-
-        </activity>
+            android:exported="true" />
 
     </application>
 

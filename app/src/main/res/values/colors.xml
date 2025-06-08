@@ -2,7 +2,6 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-
     <color name="nav_selected">#2196F3</color> <!-- Màu xanh dương -->
     <color name="nav_unselected">#9E9E9E</color> <!-- Màu xám nhạt -->
     <color name="gray_bg">#e9ecef</color>
@@ -13,4 +12,10 @@
     <color name="blue_5">#3B7DD8</color>
     <color name="card_graph_bg_color">#4A91F2</color>
     <color name="graph_heading_color">#FFFFFF</color>
+    <color name="green_gradient_start">#4CAF50</color>
+    <color name="orange_gradient_start">#FF9800</color>
+    <color name="green_gradient_end">#2E7D32</color>
+    <color name="red_gradient_start">#F44336</color>
+    <color name="red_gradient_end">#C62828</color>
+    <color name="gray_disabled">#BDBDBD</color>
 </resources>
