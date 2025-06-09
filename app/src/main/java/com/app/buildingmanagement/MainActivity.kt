@@ -3,7 +3,6 @@ package com.app.buildingmanagement
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -50,51 +49,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBottomNavigation() {
-        binding?.bottomNavigation?.let { bottomNav ->
-            // Setup với NavController
-            bottomNav.setupWithNavController(navController)
-
-            // Tùy chỉnh style cho bottom navigation
-            bottomNav.apply {
-                setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.white))
-                elevation = 8f
-
-                // Tùy chỉnh màu sắc
-                itemIconTintList = ContextCompat.getColorStateList(
-                    this@MainActivity,
-                    R.color.bottom_nav_color_selector
-                )
-                itemTextColor = ContextCompat.getColorStateList(
-                    this@MainActivity,
-                    R.color.bottom_nav_color_selector
-                )
-
-                // Animation khi chuyển tab
-                itemRippleColor = ContextCompat.getColorStateList(
-                    this@MainActivity,
-                    R.color.ripple_color
-                )
-            }
-
-            // Xử lý reselect tab (tap vào tab đang active)
-            bottomNav.setOnItemReselectedListener { item ->
-                when (item.itemId) {
-                    R.id.nav_home -> {
-                        // Có thể scroll to top hoặc refresh data
-                        // Ví dụ: gửi event đến HomeFragment
-                    }
-                    R.id.nav_chart -> {
-                        // Refresh chart data
-                    }
-                    R.id.nav_payment -> {
-                        // Refresh payment data
-                    }
-                    R.id.nav_settings -> {
-                        // Không cần action đặc biệt
-                    }
-                }
-            }
-        }
+        binding?.bottomNavigation?.setupWithNavController(navController)
     }
 
     override fun onStart() {
@@ -108,41 +63,5 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         binding = null
-    }
-
-    // Method để các fragment có thể gọi khi cần
-    fun showBottomNavigation() {
-        binding?.bottomNavigation?.animate()?.translationY(0f)?.duration = 300
-    }
-
-    fun hideBottomNavigation() {
-        binding?.bottomNavigation?.let { bottomNav ->
-            bottomNav.animate().translationY(bottomNav.height.toFloat()).duration = 300
-        }
-    }
-
-    // Method để set badge cho notification (nếu cần)
-    fun setBadge(menuItemId: Int, count: Int) {
-        binding?.bottomNavigation?.let { bottomNav ->
-            val badge = bottomNav.getOrCreateBadge(menuItemId)
-            if (count > 0) {
-                badge.isVisible = true
-                badge.number = count
-                badge.backgroundColor = ContextCompat.getColor(this, R.color.error_color)
-                badge.badgeTextColor = ContextCompat.getColor(this, R.color.white)
-            } else {
-                badge.isVisible = false
-            }
-        }
-    }
-
-    // Method để clear tất cả badges
-    fun clearAllBadges() {
-        binding?.bottomNavigation?.let { bottomNav ->
-            bottomNav.removeBadge(R.id.nav_home)
-            bottomNav.removeBadge(R.id.nav_chart)
-            bottomNav.removeBadge(R.id.nav_payment)
-            bottomNav.removeBadge(R.id.nav_settings)
-        }
     }
 }
