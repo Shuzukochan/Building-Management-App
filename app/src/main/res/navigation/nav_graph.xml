@@ -1,27 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
     app:startDestination="@+id/nav_home">
 
     <fragment
         android:id="@+id/nav_home"
         android:name="com.app.buildingmanagement.fragment.HomeFragment"
-        android:label="Home" />
+        android:label="@string/nav_home"
+        tools:layout="@layout/fragment_home" />
 
     <fragment
-        android:id="@+id/nav_location"
+        android:id="@+id/nav_chart"
         android:name="com.app.buildingmanagement.fragment.ChartFragment"
-        android:label="Location" />
+        android:label="@string/nav_chart"
+        tools:layout="@layout/fragment_chart" />
 
     <fragment
-        android:id="@+id/nav_pay"
+        android:id="@+id/nav_payment"
         android:name="com.app.buildingmanagement.fragment.PayFragment"
-        android:label="Dashboard" />
+        android:label="@string/nav_payment"
+        tools:layout="@layout/fragment_pay" />
 
     <fragment
         android:id="@+id/nav_settings"
         android:name="com.app.buildingmanagement.fragment.SettingsFragment"
-        android:label="Settings" />
-</navigation>
+        android:label="@string/nav_settings"
+        tools:layout="@layout/fragment_settings" />
 
+</navigation>

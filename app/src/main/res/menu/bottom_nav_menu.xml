@@ -1,20 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item
         android:id="@+id/nav_home"
-        android:icon="@drawable/home"
-        android:title="Tổng quan" />
+        android:icon="@drawable/ic_home_selector"
+        android:title="@string/nav_home"
+        android:contentDescription="@string/nav_home_desc" />
+
     <item
-        android:id="@+id/nav_location"
-        android:icon="@drawable/chart"
-        android:title="Biểu đồ" />
+        android:id="@+id/nav_chart"
+        android:icon="@drawable/ic_chart_selector"
+        android:title="@string/nav_chart"
+        android:contentDescription="@string/nav_chart_desc" />
+
     <item
-        android:id="@+id/nav_pay"
-        android:icon="@drawable/pays"
-        android:title="Thanh toán" />
+        android:id="@+id/nav_payment"
+        android:icon="@drawable/ic_payment_selector"
+        android:title="@string/nav_payment"
+        android:contentDescription="@string/nav_payment_desc" />
+
     <item
         android:id="@+id/nav_settings"
-        android:icon="@drawable/settings"
-        android:title="Cài đặt" />
+        android:icon="@drawable/ic_settings_selector"
+        android:title="@string/nav_settings"
+        android:contentDescription="@string/nav_settings_desc" />
 
 </menu>
