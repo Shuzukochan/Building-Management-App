@@ -1,6 +1,7 @@
 package com.app.buildingmanagement.fragment
 
 import android.app.DatePickerDialog
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.databinding.FragmentChartBinding
 import com.app.buildingmanagement.dialog.MonthPickerDialog
+import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -19,7 +21,6 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
-import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -51,11 +52,26 @@ class ChartFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        initializeFirebase()
+        setupSpinners()
+        setupDatePickers()
+        setDefaultRanges()
+        loadChartData()
+    }
+
+    private fun initializeFirebase() {
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
         roomsRef = database.getReference("rooms")
+    }
 
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, listOf("Tháng", "Ngày"))
+    private fun setupSpinners() {
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf("Tháng", "Ngày")
+        )
+
         binding.modeSpinnerElectric.adapter = adapter
         binding.modeSpinnerWater.adapter = adapter
         binding.modeSpinnerElectric.setSelection(0)
@@ -78,64 +94,105 @@ class ChartFragment : Fragment() {
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
+    }
 
+    private fun setupDatePickers() {
         setupDatePicker(binding.fromDateElectric, true)
         setupDatePicker(binding.toDateElectric, true)
         setupDatePicker(binding.fromDateWater, false)
         setupDatePicker(binding.toDateWater, false)
-
-        setDefaultRange(true)
-        setDefaultRange(false)
-        loadChartData()
     }
 
     private fun setupDatePicker(editText: EditText, isElectric: Boolean) {
         editText.setOnClickListener {
             val mode = if (isElectric) selectedElectricMode else selectedWaterMode
-
             val calendar = Calendar.getInstance()
 
             if (mode == "Tháng") {
-                val text = editText.text.toString()
-                val parts = text.split("/")
-                if (parts.size == 2) {
-                    val selectedMonth = parts[0].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
-                    val selectedYear = parts[1].toIntOrNull() ?: calendar.get(Calendar.YEAR)
-
-                    MonthPickerDialog(
-                        context = requireContext(),
-                        selectedMonth = selectedMonth,
-                        selectedYear = selectedYear
-                    ) { pickedMonth, pickedYear ->
-                        calendar.set(Calendar.YEAR, pickedYear)
-                        calendar.set(Calendar.MONTH, pickedMonth)
-                        calendar.set(Calendar.DAY_OF_MONTH, 1)
-                        editText.setText(displayMonthFormatter.format(calendar.time))
-                        validateAndLoadChart(calendar.time, isElectric, mode, editText)
-                    }.show()
-                }
+                showMonthPicker(editText, calendar)
             } else {
-                val text = editText.text.toString()
-                val date = try {
-                    displayDateFormatter.parse(text)
-                } catch (e: Exception) {
-                    null
-                }
-                if (date != null) calendar.time = date
-
-                DatePickerDialog(requireContext(), { _, year, month, day ->
-                    calendar.set(year, month, day)
-                    editText.setText(displayDateFormatter.format(calendar.time))
-                    validateAndLoadChart(calendar.time, isElectric, mode, editText)
-                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                showDatePicker(editText, calendar)
             }
         }
+    }
+
+    private fun showMonthPicker(editText: EditText, calendar: Calendar) {
+        val text = editText.text.toString()
+        val parts = text.split("/")
+
+        val selectedMonth = if (parts.size == 2) {
+            parts[0].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
+        } else {
+            calendar.get(Calendar.MONTH)
+        }
+
+        val selectedYear = if (parts.size == 2) {
+            parts[1].toIntOrNull() ?: calendar.get(Calendar.YEAR)
+        } else {
+            calendar.get(Calendar.YEAR)
+        }
+
+        try {
+            MonthPickerDialog(
+                context = requireContext(),
+                selectedMonth = selectedMonth,
+                selectedYear = selectedYear
+            ) { pickedMonth, pickedYear ->
+                calendar.set(Calendar.YEAR, pickedYear)
+                calendar.set(Calendar.MONTH, pickedMonth)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                editText.setText(displayMonthFormatter.format(calendar.time))
+                loadChartData()
+            }.show()
+        } catch (e: Exception) {
+            DatePickerDialog(
+                requireContext(),
+                { _, year, month, _ ->
+                    calendar.set(year, month, 1)
+                    editText.setText(displayMonthFormatter.format(calendar.time))
+                    loadChartData()
+                },
+                selectedYear,
+                selectedMonth,
+                1
+            ).show()
+        }
+    }
+
+    private fun showDatePicker(editText: EditText, calendar: Calendar) {
+        val text = editText.text.toString()
+        val date = try {
+            displayDateFormatter.parse(text)
+        } catch (e: Exception) {
+            null
+        }
+        if (date != null) calendar.time = date
+
+        DatePickerDialog(
+            requireContext(),
+            { _, year, month, day ->
+                calendar.set(year, month, day)
+                editText.setText(displayDateFormatter.format(calendar.time))
+                loadChartData()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    private fun setDefaultRanges() {
+        setDefaultRange(true)
+        setDefaultRange(false)
     }
 
     private fun setDefaultRange(isElectric: Boolean) {
         val calendar = Calendar.getInstance()
         val toDate = calendar.time
-        if ((if (isElectric) selectedElectricMode else selectedWaterMode) == "Ngày") {
+
+        val mode = if (isElectric) selectedElectricMode else selectedWaterMode
+
+        if (mode == "Ngày") {
             calendar.add(Calendar.DAY_OF_MONTH, -6)
         } else {
             calendar.add(Calendar.MONTH, -5)
@@ -161,51 +218,15 @@ class ChartFragment : Fragment() {
         }
     }
 
-    private fun validateAndLoadChart(selectedDate: Date, isElectric: Boolean, mode: String, editText: EditText) {
-        try {
-            val from = if (isElectric) binding.fromDateElectric.text.toString() else binding.fromDateWater.text.toString()
-            val to = if (isElectric) binding.toDateElectric.text.toString() else binding.toDateWater.text.toString()
-
-            val fromDate = if (mode == "Ngày") displayDateFormatter.parse(from) else displayMonthFormatter.parse(from)
-            val toDate = if (mode == "Ngày") displayDateFormatter.parse(to) else displayMonthFormatter.parse(to)
-
-            if (fromDate == null || toDate == null) {
-                Toast.makeText(requireContext(), "Không thể phân tích ngày hợp lệ", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            if (fromDate.after(toDate)) {
-                Toast.makeText(requireContext(), "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            val diff = if (mode == "Ngày") {
-                ((toDate.time - fromDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1
-            } else {
-                val calFrom = Calendar.getInstance().apply { time = fromDate }
-                val calTo = Calendar.getInstance().apply { time = toDate }
-                val yearDiff = calTo.get(Calendar.YEAR) - calFrom.get(Calendar.YEAR)
-                val monthDiff = calTo.get(Calendar.MONTH) - calFrom.get(Calendar.MONTH)
-                yearDiff * 12 + monthDiff + 1
-            }
-
-            if (diff > 7) {
-                Toast.makeText(requireContext(), "Khoảng thời gian không được vượt quá 7 ${if (mode == "Ngày") "ngày" else "tháng"}", Toast.LENGTH_SHORT).show()
-            } else {
-                loadChartData()
-            }
-        } catch (e: ParseException) {
-            e.printStackTrace()
-            Toast.makeText(requireContext(), "Lỗi khi xử lý ngày tháng", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun parseDateInput(value: String, mode: String): Date? {
         return try {
-            if (mode == "Ngày") displayDateFormatter.parse(value)
-            else {
+            if (mode == "Ngày") {
+                displayDateFormatter.parse(value)
+            } else {
                 val parts = value.split("/")
-                if (parts.size == 2) firebaseMonthFormatter.parse("${parts[1]}-${parts[0]}") else null
+                if (parts.size == 2) {
+                    firebaseMonthFormatter.parse("${parts[1]}-${parts[0]}")
+                } else null
             }
         } catch (e: Exception) {
             null
@@ -226,42 +247,52 @@ class ChartFragment : Fragment() {
         while (!cal.time.after(to)) {
             val key = if (mode == "Ngày") firebaseDateFormatter.format(cal.time) else firebaseMonthFormatter.format(cal.time)
 
-            val value = if (mode == "Ngày") {
-                val nextDay = Calendar.getInstance().apply {
-                    time = cal.time
-                    add(Calendar.DAY_OF_MONTH, 1)
-                }
-                val prevKey = firebaseDateFormatter.format(cal.time)
-                val currKey = firebaseDateFormatter.format(nextDay.time)
-                val prev = map[prevKey]
-                val curr = map[currKey]
-                if (prev != null && curr != null) curr - prev else 0
-            } else {
-                val filtered = map.filterKeys { it.startsWith(key) }.toSortedMap()
-                if (filtered.size >= 2) {
-                    val first = filtered.values.first()
-                    val last = filtered.values.last()
-                    last - first
-                } else 0
-            }
+            val value = calculateConsumption(map, key, mode, cal)
 
             entries.add(BarEntry(index, value.toFloat()))
-            val label = if (mode == "Ngày") {
-                val parts = key.split("-")
-                "${parts[2]}/${parts[1]}"
-            } else {
-                val parts = key.split("-")
-                "${parts[1]}/${parts[0]}"
-            }
+
+            val label = formatLabel(key, mode)
             labels.add(label)
+
             index++
             if (mode == "Ngày") cal.add(Calendar.DAY_OF_MONTH, 1) else cal.add(Calendar.MONTH, 1)
         }
 
         val chart = if (isElectric) binding.electricChart else binding.waterChart
         val label = if (isElectric) "Điện (kWh)" else "Nước (m³)"
-        val color = if (isElectric) android.R.color.holo_blue_dark else android.R.color.holo_green_dark
+        val color = if (isElectric) "#FF6B35" else "#42A5F5"
         setupChart(chart, entries, labels, label, color)
+    }
+
+    private fun calculateConsumption(map: Map<String, Int>, key: String, mode: String, cal: Calendar): Int {
+        return if (mode == "Ngày") {
+            val nextDay = Calendar.getInstance().apply {
+                time = cal.time
+                add(Calendar.DAY_OF_MONTH, 1)
+            }
+            val prevKey = firebaseDateFormatter.format(cal.time)
+            val currKey = firebaseDateFormatter.format(nextDay.time)
+            val prev = map[prevKey]
+            val curr = map[currKey]
+            if (prev != null && curr != null) curr - prev else 0
+        } else {
+            val filtered = map.filterKeys { it.startsWith(key) }.toSortedMap()
+            if (filtered.size >= 2) {
+                val first = filtered.values.first()
+                val last = filtered.values.last()
+                last - first
+            } else 0
+        }
+    }
+
+    private fun formatLabel(key: String, mode: String): String {
+        val parts = key.split("-")
+        return if (mode == "Ngày") {
+            "${parts[2]}/${parts[1]}"
+        } else {
+            val year = parts[0].takeLast(2)
+            "${parts[1]}/$year"
+        }
     }
 
     private fun setupChart(
@@ -269,32 +300,51 @@ class ChartFragment : Fragment() {
         entries: List<BarEntry>,
         labels: List<String>,
         label: String,
-        colorRes: Int
+        colorHex: String
     ) {
-        val dataSet = BarDataSet(entries, label)
-        dataSet.color = resources.getColor(colorRes, null)
-        dataSet.valueTextSize = 12f
+        val dataSet = BarDataSet(entries, label).apply {
+            color = Color.parseColor(colorHex)
+            valueTextSize = 10f
+            valueTextColor = Color.BLACK
+            setDrawValues(true)
+        }
 
         chart.apply {
+            setBackgroundColor(Color.TRANSPARENT)
             axisRight.isEnabled = false
             axisLeft.axisMinimum = 0f
             setTouchEnabled(false)
             setPinchZoom(false)
             isDoubleTapToZoomEnabled = false
             data = BarData(dataSet)
+            setExtraOffsets(0f, 0f, 0f, 3f)
 
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 valueFormatter = IndexAxisValueFormatter(labels)
                 granularity = 1f
+                xAxis.setYOffset(12f)
                 setDrawGridLines(false)
                 setLabelRotationAngle(0f)
             }
 
+            axisLeft.apply {
+                axisMinimum = 0f
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0") // hoặc #CCCCCC để nhạt hơn
+                gridLineWidth = 0.5f // hoặc 0.3f để thật mảnh
+                textColor = Color.parseColor("#666666")
+                textSize = 10f
+            }
+
             description.text = ""
-            legend.isEnabled = true
-            legend.verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP
-            legend.horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.RIGHT
+            legend.apply {
+                isEnabled = true
+                verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP
+                horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.RIGHT
+                xOffset = -5f
+                textColor = Color.parseColor("#333333")
+            }
             invalidate()
         }
     }
@@ -333,8 +383,7 @@ class ChartFragment : Fragment() {
                                 }
                             }
                         }
-
-                        break  // chỉ lấy phòng khớp phone đầu tiên
+                        break
                     }
                 }
 
@@ -342,10 +391,11 @@ class ChartFragment : Fragment() {
                 drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
             }
 
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
         })
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()

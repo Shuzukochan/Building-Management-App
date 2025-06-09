@@ -243,16 +243,6 @@ class PayFragment : Fragment() {
             checkMonthPaymentAmount(previousMonth) { previousMonthAmount ->
                 if (previousMonthAmount == 0) {
                     createZeroPaymentRecord(previousMonth)
-                } else {
-                    roomsRef.child(roomNumber).child("payments").child(previousMonth)
-                        .addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                val isPreviousMonthPaid = snapshot.exists() &&
-                                        snapshot.child("status").getValue(String::class.java) == "PAID"
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {}
-                        })
                 }
             }
         }
