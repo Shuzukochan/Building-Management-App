@@ -106,8 +106,8 @@ class PayFragment : Fragment() {
 
         loadAvailableMonths { availableMonths ->
             if (availableMonths.isNotEmpty()) {
-                setupSpinnerWithAvailableMonths(availableMonths)
-            } else {
+                setupSpinnerWithAvailableMonths(availableMonths.sorted())
+            }  else {
                 setupSpinnerWithCurrentMonth()
             }
         }
@@ -142,6 +142,7 @@ class PayFragment : Fragment() {
         } ?: callback(emptyList())
     }
 
+
     private fun setupSpinnerWithAvailableMonths(availableMonths: List<String>) {
         val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
         val months = mutableListOf<String>()
@@ -153,7 +154,6 @@ class PayFragment : Fragment() {
             if (parts.size == 2) {
                 val year = parts[0].toIntOrNull()
                 val month = parts[1].toIntOrNull()
-
                 if (year != null && month != null && month >= 1 && month <= 12) {
                     calendar.set(Calendar.YEAR, year)
                     calendar.set(Calendar.MONTH, month - 1)
@@ -179,11 +179,66 @@ class PayFragment : Fragment() {
                 override fun onNothingSelected(parent: AdapterView<*>?) {}
             }
 
-            val latestMonthIndex = monthKeys.size - 1
-            binding.spnMonthPicker.setSelection(latestMonthIndex)
+            // Logic mới: Kiểm tra thanh toán tháng trước để quyết định hiển thị tháng nào
+            determineDefaultMonth(monthKeys) { defaultMonthIndex ->
+                binding.spnMonthPicker.setSelection(defaultMonthIndex)
+            }
         } else {
             setupSpinnerWithCurrentMonth()
         }
+    }
+
+    private fun determineDefaultMonth(monthKeys: List<String>, callback: (Int) -> Unit) {
+        val calendar = Calendar.getInstance()
+        val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+
+        // Tháng hiện tại
+        val currentMonthKey = monthKeyFormat.format(calendar.time)
+
+        // Tháng trước
+        calendar.add(Calendar.MONTH, -1)
+        val previousMonthKey = monthKeyFormat.format(calendar.time)
+
+        // Tìm index của tháng hiện tại và tháng trước trong danh sách
+        val currentMonthIndex = monthKeys.indexOf(currentMonthKey)
+        val previousMonthIndex = monthKeys.indexOf(previousMonthKey)
+
+        // Nếu không tìm thấy tháng trước trong danh sách, hiển thị tháng mới nhất
+        if (previousMonthIndex == -1) {
+            callback(monthKeys.size - 1)
+            return
+        }
+
+        // Kiểm tra trạng thái thanh toán tháng trước
+        userRoomNumber?.let { roomNumber ->
+            roomsRef.child(roomNumber).child("payments").child(previousMonthKey)
+                .addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val isPreviousMonthPaid = snapshot.exists() &&
+                                snapshot.child("status").getValue(String::class.java) == "PAID"
+
+                        when {
+                            // Nếu tháng trước đã thanh toán và có tháng hiện tại trong danh sách
+                            isPreviousMonthPaid && currentMonthIndex != -1 -> {
+                                callback(currentMonthIndex)
+                            }
+                            // Nếu tháng trước chưa thanh toán
+                            !isPreviousMonthPaid -> {
+                                callback(previousMonthIndex)
+                            }
+                            // Mặc định hiển thị tháng mới nhất
+                            else -> {
+                                callback(monthKeys.size - 1)
+                            }
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        // Nếu có lỗi, hiển thị tháng mới nhất
+                        callback(monthKeys.size - 1)
+                    }
+                })
+        } ?: callback(monthKeys.size - 1)
     }
 
     private fun setupSpinnerWithCurrentMonth() {
@@ -208,6 +263,7 @@ class PayFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // Luôn chọn tháng hiện tại nếu chỉ có một tháng
         selectedMonth = monthKeyFormat.format(calendar.time)
         currentMonth = selectedMonth
     }
@@ -243,6 +299,16 @@ class PayFragment : Fragment() {
             checkMonthPaymentAmount(previousMonth) { previousMonthAmount ->
                 if (previousMonthAmount == 0) {
                     createZeroPaymentRecord(previousMonth)
+                } else {
+                    roomsRef.child(roomNumber).child("payments").child(previousMonth)
+                        .addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val isPreviousMonthPaid = snapshot.exists() &&
+                                        snapshot.child("status").getValue(String::class.java) == "PAID"
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {}
+                        })
                 }
             }
         }
