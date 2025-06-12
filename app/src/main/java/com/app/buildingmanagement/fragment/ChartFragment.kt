@@ -331,8 +331,8 @@ class ChartFragment : Fragment() {
             axisLeft.apply {
                 axisMinimum = 0f
                 setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0") // hoặc #CCCCCC để nhạt hơn
-                gridLineWidth = 0.5f // hoặc 0.3f để thật mảnh
+                gridColor = Color.parseColor("#E0E0E0")
+                gridLineWidth = 0.5f
                 textColor = Color.parseColor("#666666")
                 textSize = 10f
             }

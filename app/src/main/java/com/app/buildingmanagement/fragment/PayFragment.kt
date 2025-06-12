@@ -30,6 +30,7 @@ import org.json.JSONObject
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+
 class PayFragment : Fragment() {
 
     private var _binding: FragmentPayBinding? = null
@@ -67,7 +68,6 @@ class PayFragment : Fragment() {
         database = FirebaseDatabase.getInstance()
         roomsRef = database.getReference("rooms")
 
-        setupMonthSpinner()
         findUserRoom()
 
         binding.btnPayNow.setOnClickListener {
@@ -99,7 +99,6 @@ class PayFragment : Fragment() {
                         // Gọi spinner sau khi đã xác định phòng
                         loadAvailableMonths()
 
-                        // Setup listener cho payments của phòng này
                         setupPaymentStatusListener()
 
                         // Load initial data
@@ -120,24 +119,18 @@ class PayFragment : Fragment() {
     private fun loadAvailableMonths() {
 
         userRoomNumber?.let { roomNumber ->
-            roomsRef.child(roomNumber).child("nodes")
+            roomsRef.child(roomNumber).child("history")
                 .addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
                         val rawMonths = mutableSetOf<String>() // yyyy-MM
-
-                        for (node in snapshot.children) {
-                            val history = node.child("history")
-                            for (dateSnapshot in history.children) {
-                                val dateKey = dateSnapshot.key ?: continue
-                                if (dateKey.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
-                                    val monthKey = dateKey.substring(0, 7) // yyyy-MM
-                                    rawMonths.add(monthKey)
-                                }
+                        for (dateSnapshot in snapshot.children) {
+                            val dateKey = dateSnapshot.key ?: continue
+                            if (dateKey.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
+                                val monthKey = dateKey.substring(0, 7) // yyyy-MM
+                                rawMonths.add(monthKey)
                             }
                         }
-
                         monthKeys = rawMonths.sorted()
-
                         val displayMonths = monthKeys.map {
                             val parts = it.split("-")
                             val cal = Calendar.getInstance()
@@ -145,26 +138,77 @@ class PayFragment : Fragment() {
                             cal.set(Calendar.MONTH, parts[1].toInt() - 1)
                             SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(cal.time)
                         }
-
                         if (monthKeys.isEmpty()) return
-
                         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, displayMonths)
                         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                         binding.spnMonthPicker.adapter = adapter
-
                         binding.spnMonthPicker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                                 selectedMonth = monthKeys[position]
                                 loadUsageData()
                                 updateUIBasedOnMonth()
                             }
-
                             override fun onNothingSelected(parent: AdapterView<*>?) {}
                         }
-
-                        determineDefaultMonth(monthKeys)
+                        // --- LOGIC CHỌN THÁNG MẶC ĐỊNH ---
+                        val calendar = Calendar.getInstance()
+                        val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+                        val currentMonthKey = monthKeyFormat.format(calendar.time)
+                        val prevCalendar = Calendar.getInstance()
+                        prevCalendar.add(Calendar.MONTH, -1)
+                        val previousMonthKey = monthKeyFormat.format(prevCalendar.time)
+                        var switchedToCurrent = false
+                        if (monthKeys.contains(previousMonthKey)) {
+                            val prevMonthDates = snapshot.children
+                                .mapNotNull { it.key }
+                                .filter { it.startsWith(previousMonthKey) }
+                                .sorted()
+                            var prevElectric = 0
+                            var prevWater = 0
+                            if (prevMonthDates.size >= 2) {
+                                val firstDay = prevMonthDates.first()
+                                val lastDay = prevMonthDates.last()
+                                val firstSnapshot = snapshot.child(firstDay)
+                                val lastSnapshot = snapshot.child(lastDay)
+                                val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt() ?: 0
+                                val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt() ?: 0
+                                val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt() ?: 0
+                                val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt() ?: 0
+                                prevElectric = lastElectric - firstElectric
+                                prevWater = lastWater - firstWater
+                            }
+                            val prevTotalCost = prevElectric * 3300 + prevWater * 15000
+                            // Nếu không có dữ liệu hoặc chỉ có 1 ngày hoặc số điện nước đều bằng 0 hoặc tổng tiền bằng 0 thì chuyển sang tháng hiện tại
+                            if (prevMonthDates.size < 2 || (prevElectric == 0 && prevWater == 0) || prevTotalCost == 0) {
+                                if (monthKeys.contains(currentMonthKey)) {
+                                    val idx = monthKeys.indexOf(currentMonthKey)
+                                    binding.spnMonthPicker.setSelection(idx)
+                                    switchedToCurrent = true
+                                    Log.d("PayFragment", "Chuyển sang tháng hiện tại vì tháng trước không có dữ liệu hoặc bằng 0 hoặc tổng tiền 0")
+                                } else {
+                                    // Nếu không có tháng hiện tại, chọn tháng cuối cùng
+                                    binding.spnMonthPicker.setSelection(monthKeys.size - 1)
+                                    switchedToCurrent = true
+                                    Log.d("PayFragment", "Không có tháng hiện tại, chọn tháng cuối cùng")
+                                }
+                            } else {
+                                val idx = monthKeys.indexOf(previousMonthKey)
+                                binding.spnMonthPicker.setSelection(idx)
+                                switchedToCurrent = true
+                                Log.d("PayFragment", "Hiển thị tháng trước vì có số điện/nước và tổng tiền > 0")
+                            }
+                        }
+                        if (!switchedToCurrent) {
+                            val idx = monthKeys.indexOf(currentMonthKey)
+                            if (idx in monthKeys.indices) {
+                                binding.spnMonthPicker.setSelection(idx)
+                                Log.d("PayFragment", "Hiển thị tháng hiện tại mặc định")
+                            } else {
+                                binding.spnMonthPicker.setSelection(monthKeys.size - 1)
+                                Log.d("PayFragment", "Hiển thị tháng mới nhất vì không có tháng hiện tại")
+                            }
+                        }
                     }
-
                     override fun onCancelled(error: DatabaseError) {
                         Log.e("PayFragment", "Lỗi khi tải danh sách tháng từ history: ${error.message}")
                     }
@@ -181,27 +225,27 @@ class PayFragment : Fragment() {
             calendar.add(Calendar.MONTH, -1)
             previousMonth = monthKeyFormat.format(calendar.time)
 
-            roomsRef.child(roomNumber).child("payments").child(previousMonth)
-                .addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        val isPreviousMonthPaid = snapshot.exists() &&
-                                snapshot.child("status").getValue(String::class.java) == "PAID"
+            // Đổi sang lấy dữ liệu từ rooms/$roomNumber/history
+            val historyRef = roomsRef.child(roomNumber).child("history").child(previousMonth)
+            historyRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val isPreviousMonthPaid = snapshot.exists() &&
+                        snapshot.child("status").getValue(String::class.java) == "PAID"
 
-                        val defaultMonth = if (isPreviousMonthPaid) currentMonth else previousMonth
-                        val index = monthKeys.indexOf(defaultMonth)
+                    // Nếu tháng trước chưa thanh toán thì chọn tháng hiện tại
+                    val defaultMonth = if (!isPreviousMonthPaid) currentMonth else previousMonth
+                    val index = monthKeys.indexOf(defaultMonth)
 
-                        if (index in monthKeys.indices) {
-                            binding.spnMonthPicker.setSelection(index)
-                        } else {
-                            // fallback nếu tháng không tồn tại
-                            binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                        }
+                    if (index in monthKeys.indices) {
+                        binding.spnMonthPicker.setSelection(index)
+                    } else {
+                        // fallback nếu tháng không tồn tại
+                        binding.spnMonthPicker.setSelection(monthKeys.size - 1)
                     }
+                }
 
-                    override fun onCancelled(error: DatabaseError) {
-                        Log.e("PayFragment", "Error checking payment status: ${error.message}")
-                    }
-                })
+                override fun onCancelled(error: DatabaseError) {}
+            })
         }
     }
 
@@ -268,50 +312,94 @@ class PayFragment : Fragment() {
     }
 
     private fun checkPaymentStatus() {
-        userRoomNumber?.let { roomNumber ->
-            // Không dùng chỉ số cứng nữa → chờ cho đến khi monthKeys đã được load xong
-            // Nếu bạn đã lưu `monthKeys` sau khi load thì gọi thẳng luôn ở đây:
-            val calendar = Calendar.getInstance()
-            val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-            currentMonth = monthKeyFormat.format(calendar.time)
-            calendar.add(Calendar.MONTH, -1)
-            previousMonth = monthKeyFormat.format(calendar.time)
-
-            roomsRef.child(roomNumber).child("payments").child(previousMonth)
-                .addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        val isPreviousMonthPaid = snapshot.exists() &&
-                                snapshot.child("status").getValue(String::class.java) == "PAID"
-
-                        val defaultMonth = if (isPreviousMonthPaid) currentMonth else previousMonth
-
-                        val index = monthKeys.indexOf(defaultMonth)
-                        if (index in monthKeys.indices) {
-                            binding.spnMonthPicker.setSelection(index)
-                        } else {
-                            // Nếu không tìm thấy thì chọn tháng mới nhất
-                            binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                        }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        Log.e("PayFragment", "Error checking payment status: ${error.message}")
-                    }
-                })
-        }
+        // Đã bỏ setSelection ở đây để tránh xung đột với loadAvailableMonths
+        // Chỉ còn lại logic kiểm tra trạng thái thanh toán nếu cần
+        // Nếu cần cập nhật UI, chỉ gọi updateUIBasedOnMonth()
+        updateUIBasedOnMonth()
     }
 
 
     private fun updateUIBasedOnMonth() {
-        val isCurrentMonth = selectedMonth == currentMonth
-        val isPreviousMonth = selectedMonth == previousMonth
-
-        // Kiểm tra trạng thái thanh toán cho tháng được chọn
-        checkSelectedMonthPaymentStatus { isPaid ->
-            updatePaymentStatusCard(isPaid, isCurrentMonth)
-            updateCalculationTitle(isCurrentMonth)
-            updatePaymentButton(isPaid, isCurrentMonth, isPreviousMonth)
-            updatePaymentNotice(isPaid, isCurrentMonth, isPreviousMonth)
+        // Đảm bảo currentMonth và previousMonth luôn được cập nhật đúng
+        if (selectedMonth.isNotBlank()) {
+            val parts = selectedMonth.split("-")
+            if (parts.size >= 2) {
+                currentMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+                val cal = Calendar.getInstance()
+                cal.time = Date()
+                cal.add(Calendar.MONTH, -1)
+                previousMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(cal.time)
+            }
+        }
+        // Lấy lại usage data cho tháng đang chọn
+        userRoomNumber?.let { roomNumber ->
+            roomsRef.child(roomNumber).child("history")
+                .addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val monthDates = snapshot.children
+                            .mapNotNull { it.key }
+                            .filter { it.startsWith(selectedMonth) }
+                            .sorted()
+                        var startElectric: Int? = null
+                        var endElectric: Int? = null
+                        var startWater: Int? = null
+                        var endWater: Int? = null
+                        if (monthDates.isNotEmpty()) {
+                            val firstDay = monthDates.first()
+                            val lastDay = monthDates.last()
+                            val firstSnapshot = snapshot.child(firstDay)
+                            val lastSnapshot = snapshot.child(lastDay)
+                            val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                            val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                            val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                            val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                            if (firstElectric != null && lastElectric != null) {
+                                startElectric = firstElectric
+                                endElectric = lastElectric
+                            }
+                            if (firstWater != null && lastWater != null) {
+                                startWater = firstWater
+                                endWater = lastWater
+                            }
+                        }
+                        val usedElectric = if (startElectric != null && endElectric != null) endElectric - startElectric else 0
+                        val usedWater = if (startWater != null && endWater != null) endWater - startWater else 0
+                        val electricCost = usedElectric * 3300
+                        val waterCost = usedWater * 15000
+                        val total = electricCost + waterCost
+                        val isCurrentMonth = selectedMonth == currentMonth
+                        // Nếu số điện, nước, tiền đều bằng 0 thì hiển thị không cần thanh toán
+                        if (usedElectric == 0 && usedWater == 0 && total == 0) {
+                            val linearLayout = binding.cardPaymentStatus.getChildAt(0) as LinearLayout
+                            linearLayout.background = ContextCompat.getDrawable(requireContext(), R.drawable.gradient_green)
+                            binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_check_circle)
+                            binding.tvPaymentStatus.text = "Không cần thanh toán tháng ${getDisplayMonth()}"
+                            binding.tvNote.text = "Tháng này không phát sinh chi phí."
+                            binding.btnPayNow.isEnabled = false
+                            binding.btnPayNow.text = "✅ Không cần thanh toán"
+                            binding.btnPayNow.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.gray_disabled))
+                            binding.cardPaymentNotice.visibility = View.GONE
+                            updateCalculationTitle(isCurrentMonth)
+                        } else {
+                            // ...gọi lại logic cũ...
+                            checkSelectedMonthPaymentStatus { isPaid ->
+                                if (isCurrentMonth) {
+                                    updatePaymentStatusCard(false, true)
+                                    updateCalculationTitle(true)
+                                    updatePaymentButton(false, true, false)
+                                    updatePaymentNotice(false, true, false)
+                                } else {
+                                    val isPreviousMonth = selectedMonth == previousMonth
+                                    updatePaymentStatusCard(isPaid, isCurrentMonth)
+                                    updateCalculationTitle(isCurrentMonth)
+                                    updatePaymentButton(isPaid, isCurrentMonth, isPreviousMonth)
+                                    updatePaymentNotice(isPaid, isCurrentMonth, isPreviousMonth)
+                                }
+                            }
+                        }
+                    }
+                    override fun onCancelled(error: DatabaseError) {}
+                })
         }
     }
 
@@ -450,17 +538,22 @@ class PayFragment : Fragment() {
     }
 
     private fun getDisplayMonth(): String {
-        val calendar = Calendar.getInstance()
+        if (selectedMonth.isBlank()) return "N/A"
         val parts = selectedMonth.split("-")
-        calendar.set(Calendar.YEAR, parts[0].toInt())
-        calendar.set(Calendar.MONTH, parts[1].toInt() - 1)
-
-        return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(calendar.time)
+        if (parts.size < 2) return "N/A"
+        return try {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.YEAR, parts[0].toInt())
+            calendar.set(Calendar.MONTH, parts[1].toInt() - 1)
+            SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(calendar.time)
+        } catch (e: Exception) {
+            "N/A"
+        }
     }
 
     private fun loadUsageData() {
         userRoomNumber?.let { roomNumber ->
-            roomsRef.child(roomNumber).child("nodes")
+            roomsRef.child(roomNumber).child("history")
                 .addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
                         var startElectric: Int? = null
@@ -468,34 +561,36 @@ class PayFragment : Fragment() {
                         var startWater: Int? = null
                         var endWater: Int? = null
 
-                        for (node in snapshot.children) {
-                            val history = node.child("history")
-                            val monthDates = history.children
-                                .mapNotNull { it.key }
-                                .filter { it.startsWith(selectedMonth) }
-                                .sorted()
+                        Log.d("PayFragment", "selectedMonth: $selectedMonth")
+                        val monthDates = snapshot.children
+                            .mapNotNull { it.key }
+                            .filter { it.startsWith(selectedMonth) }
+                            .sorted()
 
-                            if (monthDates.isNotEmpty()) {
-                                val firstDay = monthDates.first()
-                                val lastDay = monthDates.last()
+                        Log.d("PayFragment", "monthDates: $monthDates")
 
-                                val firstSnapshot = history.child(firstDay)
-                                val lastSnapshot = history.child(lastDay)
+                        if (monthDates.isNotEmpty()) {
+                            val firstDay = monthDates.first()
+                            val lastDay = monthDates.last()
 
-                                val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                                val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                                val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                                val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                            val firstSnapshot = snapshot.child(firstDay)
+                            val lastSnapshot = snapshot.child(lastDay)
 
-                                if (firstElectric != null && lastElectric != null) {
-                                    startElectric = firstElectric
-                                    endElectric = lastElectric
-                                }
+                            val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                            val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                            val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                            val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
 
-                                if (firstWater != null && lastWater != null) {
-                                    startWater = firstWater
-                                    endWater = lastWater
-                                }
+                            Log.d("PayFragment", "firstDay: $firstDay, lastDay: $lastDay, firstElectric: $firstElectric, lastElectric: $lastElectric, firstWater: $firstWater, lastWater: $lastWater")
+
+                            if (firstElectric != null && lastElectric != null) {
+                                startElectric = firstElectric
+                                endElectric = lastElectric
+                            }
+
+                            if (firstWater != null && lastWater != null) {
+                                startWater = firstWater
+                                endWater = lastWater
                             }
                         }
 
@@ -504,6 +599,8 @@ class PayFragment : Fragment() {
 
                         val usedWater = if (startWater != null && endWater != null)
                             endWater - startWater else 0
+
+                        Log.d("PayFragment", "usedElectric: $usedElectric, usedWater: $usedWater")
 
                         val electricCost = usedElectric * 3300
                         val waterCost = usedWater * 15000
@@ -547,8 +644,8 @@ class PayFragment : Fragment() {
         val amount = totalCost
 
         // Description ngắn gọn - tối đa 25 ký tự
-        val monthShort = selectedMonth.substring(5, 7) // Lấy "05" từ "2025-05"
-        val description = "Thanh toan P$userRoomNumber T$monthShort" // Ví dụ: "P1 T05/25" (9 ký tự)
+        val monthShort = selectedMonth.substring(5, 7)
+        val description = "Thanh toan P$userRoomNumber T$monthShort"
 
         val cancelUrl = "myapp://payment-cancel"
         val returnUrl = "myapp://payment-success"
