@@ -8,56 +8,60 @@
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/hcmute"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/hcmute_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BuildingManagement"
-        android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
-
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false" />
         <activity
             android:name=".WebPayActivity"
             android:exported="true"
             android:launchMode="singleTop">
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="myapp" android:host="payment-success" />
+
+                <data
+                    android:host="payment-success"
+                    android:scheme="myapp" />
             </intent-filter>
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="myapp" android:host="payment-cancel" />
+
+                <data
+                    android:host="payment-cancel"
+                    android:scheme="myapp" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".OtpActivity"
             android:exported="false" />
-
         <activity
             android:name=".BaseActivity"
             android:exported="false" />
-
         <activity
             android:name=".SignInActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".MainActivity"
             android:exported="true" />
-
     </application>
 
 </manifest>

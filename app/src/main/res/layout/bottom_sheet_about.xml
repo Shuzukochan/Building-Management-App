@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_background"
+    android:padding="20dp">
+
+    <!-- Handle bar -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/bottom_sheet_handle"
+        android:alpha="0.3" />
+
+    <!-- Logo trường và lab -->
+    <!-- Logo trường và lab -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="20dp">
+
+        <!-- Logo trường -->
+        <ImageView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/logo_hcmute"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+
+        <!-- Logo phòng lab -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:src="@drawable/logo_iot_vision"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+
+
+    <!-- Thông tin ứng dụng -->
+    <TextView
+        android:id="@+id/tvAppName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ứng dụng quản lý tòa nhà"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:gravity="center"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Phiên bản 1.0.0"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:gravity="center"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Giới thiệu đồ án -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Về ứng dụng"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ứng dụng quản lý thông minh giúp tối ưu hóa việc quản lý và vận hành tòa nhà. Cung cấp các tính năng theo dõi, giám sát và tương tác hiệu quả giữa cư dân và ban quản lý."
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:lineSpacingExtra="4dp"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Thành viên nhóm -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Thành viên thực hiện"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginBottom="12dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/info_card_background"
+        android:padding="16dp"
+        android:layout_marginBottom="20dp">
+
+        <!-- Thành viên 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Sinh viên 1:"
+                android:textSize="13sp"
+                android:textColor="#999999" />
+
+            <TextView
+                android:id="@+id/tvStudent1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nguyễn Bá Uy - 21146362"
+                android:textSize="13sp"
+                android:textColor="#666666"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Thành viên 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Sinh viên 2:"
+                android:textSize="13sp"
+                android:textColor="#999999" />
+
+            <TextView
+                android:id="@+id/tvStudent2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trần Văn Huy - 21146225"
+                android:textSize="13sp"
+                android:textColor="#666666"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Thành viên 3 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Sinh viên 3:"
+                android:textSize="13sp"
+                android:textColor="#999999" />
+
+            <TextView
+                android:id="@+id/tvStudent3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Huỳnh Quang Vũ - 21146366"
+                android:textSize="13sp"
+                android:textColor="#666666"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E9ECEF"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Giảng viên hướng dẫn -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Giảng viên hướng dẫn:"
+                android:textSize="13sp"
+                android:textColor="#999999" />
+
+            <TextView
+                android:id="@+id/tvSupervisor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TS. Nguyễn Văn Thái"
+                android:textSize="13sp"
+                android:textColor="#666666"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Thông tin trường -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvUniversity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Đại học Sư phạm Kỹ thuật TP.HCM"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="© 2025 Building Management"
+        android:textSize="12sp"
+        android:textColor="#CCCCCC"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+</LinearLayout>

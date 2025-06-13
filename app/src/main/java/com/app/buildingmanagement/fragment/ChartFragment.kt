@@ -266,14 +266,14 @@ class ChartFragment : Fragment() {
 
     private fun calculateConsumption(map: Map<String, Int>, key: String, mode: String, cal: Calendar): Int {
         return if (mode == "Ngày") {
-            val nextDay = Calendar.getInstance().apply {
+            val prevDay = Calendar.getInstance().apply {
                 time = cal.time
-                add(Calendar.DAY_OF_MONTH, 1)
+                add(Calendar.DAY_OF_MONTH, -1)
             }
-            val prevKey = firebaseDateFormatter.format(cal.time)
-            val currKey = firebaseDateFormatter.format(nextDay.time)
-            val prev = map[prevKey]
+            val currKey = firebaseDateFormatter.format(cal.time)
+            val prevKey = firebaseDateFormatter.format(prevDay.time)
             val curr = map[currKey]
+            val prev = map[prevKey]
             if (prev != null && curr != null) curr - prev else 0
         } else {
             val filtered = map.filterKeys { it.startsWith(key) }.toSortedMap()
@@ -365,22 +365,21 @@ class ChartFragment : Fragment() {
                 for (roomSnapshot in snapshot.children) {
                     val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
                     if (phoneInRoom == phone) {
-                        val nodesSnapshot = roomSnapshot.child("nodes")
+                        // Lấy dữ liệu từ history thay vì nodes
+                        val historySnapshot = roomSnapshot.child("history")
 
-                        for (nodeSnapshot in nodesSnapshot.children) {
-                            val historySnapshot = nodeSnapshot.child("history")
-                            for (dateSnapshot in historySnapshot.children) {
-                                val dateKey = dateSnapshot.key ?: continue
+                        for (dateSnapshot in historySnapshot.children) {
+                            val dateKey = dateSnapshot.key ?: continue
 
-                                val waterValue = dateSnapshot.child("water").getValue(Int::class.java)
-                                val electricValue = dateSnapshot.child("electric").getValue(Int::class.java)
 
-                                if (waterValue != null) {
-                                    waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
-                                }
-                                if (electricValue != null) {
-                                    electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
-                                }
+                            val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                            val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+
+                            if (waterValue != null) {
+                                waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
+                            }
+                            if (electricValue != null) {
+                                electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
                             }
                         }
                         break
@@ -396,6 +395,7 @@ class ChartFragment : Fragment() {
             }
         })
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

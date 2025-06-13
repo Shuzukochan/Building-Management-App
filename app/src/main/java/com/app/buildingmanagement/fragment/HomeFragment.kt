@@ -60,8 +60,8 @@ class HomeFragment : Fragment() {
                             // Lấy số phòng từ key của room
                             roomNumber = roomSnapshot.key
 
+                            // Lấy chỉ số hiện tại từ nodes (giữ nguyên như cũ)
                             val nodesSnapshot = roomSnapshot.child("nodes")
-
                             for (nodeSnapshot in nodesSnapshot.children) {
                                 val lastData = nodeSnapshot.child("lastData")
                                 val waterValue = lastData.child("water").getValue(Long::class.java)?.toInt()
@@ -69,35 +69,36 @@ class HomeFragment : Fragment() {
 
                                 if (waterValue != null) latestWater = waterValue
                                 if (electricValue != null) latestElectric = electricValue
+                            }
 
-                                val historySnapshot = nodeSnapshot.child("history")
-                                val monthDates = historySnapshot.children
-                                    .mapNotNull { it.key }
-                                    .filter { it.startsWith(currentMonth) }
-                                    .sorted()
+                            // Lấy dữ liệu tháng hiện tại từ history (thay đổi mới)
+                            val historySnapshot = roomSnapshot.child("history")
+                            val monthDates = historySnapshot.children
+                                .mapNotNull { it.key }
+                                .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && it.startsWith(currentMonth) }
+                                .sorted()
 
-                                if (monthDates.isNotEmpty()) {
-                                    val firstDay = monthDates.first()
-                                    val lastDay = monthDates.last()
+                            if (monthDates.isNotEmpty()) {
+                                val firstDay = monthDates.first()
+                                val lastDay = monthDates.last()
 
-                                    val firstSnapshot = historySnapshot.child(firstDay)
-                                    val lastSnapshot = historySnapshot.child(lastDay)
+                                val firstSnapshot = historySnapshot.child(firstDay)
+                                val lastSnapshot = historySnapshot.child(lastDay)
 
-                                    val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                                    val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                                val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                                val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
 
-                                    val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                                    val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                                val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                                val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
 
-                                    if (firstElectric != null && lastElectric != null) {
-                                        startOfMonthElectric = firstElectric
-                                        endOfMonthElectric = lastElectric
-                                    }
+                                if (firstElectric != null && lastElectric != null) {
+                                    startOfMonthElectric = firstElectric
+                                    endOfMonthElectric = lastElectric
+                                }
 
-                                    if (firstWater != null && lastWater != null) {
-                                        startOfMonthWater = firstWater
-                                        endOfMonthWater = lastWater
-                                    }
+                                if (firstWater != null && lastWater != null) {
+                                    startOfMonthWater = firstWater
+                                    endOfMonthWater = lastWater
                                 }
                             }
                             break
