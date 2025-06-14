@@ -102,18 +102,21 @@ class SignInActivity : BaseActivity() {
         isVerificationInProgress = true
         showProgressBar()
 
-        // Set timeout để tránh loading vô hạn
-        startTimeout()
+        val startTime = System.currentTimeMillis()
+        Log.d("SIGNIN", "Starting verification at: $startTime")
+
+        // Giảm timeout xuống
+        startTimeout(30000) // 30 giây thay vì 95 giây
 
         try {
             val options = PhoneAuthOptions.newBuilder(auth)
                 .setPhoneNumber(phoneNumber)
-                .setTimeout(90L, TimeUnit.SECONDS)
+                .setTimeout(0L, TimeUnit.SECONDS) // Giảm từ 90 xuống 30 giây
                 .setActivity(this)
                 .setCallbacks(callbacks)
                 .build()
 
-            Log.d("SIGNIN", "Starting phone verification")
+            Log.d("SIGNIN", "Calling PhoneAuthProvider.verifyPhoneNumber")
             PhoneAuthProvider.verifyPhoneNumber(options)
 
         } catch (e: Exception) {
@@ -122,16 +125,18 @@ class SignInActivity : BaseActivity() {
         }
     }
 
-    private fun startTimeout() {
+    private fun startTimeout(timeoutMs: Long = 30000) {
         timeoutHandler = Handler(Looper.getMainLooper())
         timeoutRunnable = Runnable {
             if (isVerificationInProgress && !isAutoVerified && !codeSent) {
-                Log.e("SIGNIN", "Verification timeout reached")
-                handleVerificationError("Quá thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại.")
+                val currentTime = System.currentTimeMillis()
+                Log.e("SIGNIN", "Verification timeout reached at: $currentTime")
+                handleVerificationError("Quá thời gian chờ. Vui lòng thử lại.")
             }
         }
-        timeoutHandler?.postDelayed(timeoutRunnable!!, 95000) // 95 seconds
+        timeoutHandler?.postDelayed(timeoutRunnable!!, timeoutMs)
     }
+
 
     private fun clearTimeout() {
         timeoutRunnable?.let {
@@ -149,22 +154,20 @@ class SignInActivity : BaseActivity() {
     }
 
     private val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-            Log.d("SIGNIN", "onVerificationCompleted - Auto verification successful")
-
-            // Đánh dấu đã auto verify
-            isAutoVerified = true
-            isVerificationInProgress = false
-            clearTimeout()
-
-            // Ẩn progress bar và đăng nhập
-            hideProgressBar()
-            signInWithPhoneAuthCredential(credential, isAutoLogin = true)
+//            val endTime = System.currentTimeMillis()
+//            Log.d("SIGNIN", "onVerificationCompleted at: $endTime")
+//
+//            isAutoVerified = true
+//            isVerificationInProgress = false
+//            clearTimeout()
+//            hideProgressBar()
+//            signInWithPhoneAuthCredential(credential, isAutoLogin = true)
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
-            Log.e("SIGNIN", "onVerificationFailed: ${e.message}", e)
+            val endTime = System.currentTimeMillis()
+            Log.e("SIGNIN", "onVerificationFailed at: $endTime - ${e.message}", e)
 
             isVerificationInProgress = false
             clearTimeout()
@@ -174,25 +177,22 @@ class SignInActivity : BaseActivity() {
                 is FirebaseAuthInvalidCredentialsException -> "Số điện thoại không hợp lệ"
                 else -> "Lỗi xác thực: ${e.message}"
             }
-
             showToast(this@SignInActivity, errorMessage)
         }
 
         override fun onCodeSent(verifyId: String, token: PhoneAuthProvider.ForceResendingToken) {
-            Log.d("SIGNIN", "onCodeSent - verificationId: $verifyId, autoVerified: $isAutoVerified")
+            val endTime = System.currentTimeMillis()
+            Log.d("SIGNIN", "onCodeSent at: $endTime - verificationId: $verifyId")
 
-            // Lưu thông tin verification
             verificationId = verifyId
             resendToken = token
             codeSent = true
 
-            // Nếu chưa auto verify thì chuyển sang OTP screen
             if (!isAutoVerified) {
                 isVerificationInProgress = false
                 hideProgressBar()
                 clearTimeout()
 
-                // Delay nhỏ để đảm bảo onVerificationCompleted không được gọi sau
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (!isAutoVerified) {
                         Log.d("SIGNIN", "Moving to OTP screen")
@@ -204,6 +204,7 @@ class SignInActivity : BaseActivity() {
             }
         }
     }
+
 
     private fun goToOtpScreen() {
         val intent = Intent(this@SignInActivity, OtpActivity::class.java).apply {
