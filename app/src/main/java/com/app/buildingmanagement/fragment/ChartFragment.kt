@@ -3,6 +3,7 @@ package com.app.buildingmanagement.fragment
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.databinding.FragmentChartBinding
 import com.app.buildingmanagement.dialog.MonthPickerDialog
+import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
@@ -41,6 +43,10 @@ class ChartFragment : Fragment() {
     private val displayDateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN"))
     private val displayMonthFormatter = SimpleDateFormat("MM/yyyy", Locale("vi", "VN"))
 
+    companion object {
+        private const val TAG = "ChartFragment"
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -52,11 +58,15 @@ class ChartFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        initializeFirebase()
-        setupSpinners()
-        setupDatePickers()
-        setDefaultRanges()
-        loadChartData()
+        try {
+            initializeFirebase()
+            setupSpinners()
+            setupDatePickers()
+            setDefaultRanges()
+            loadChartData()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onViewCreated", e)
+        }
     }
 
     private fun initializeFirebase() {
@@ -296,109 +306,132 @@ class ChartFragment : Fragment() {
     }
 
     private fun setupChart(
-        chart: com.github.mikephil.charting.charts.BarChart,
+        chart: BarChart,
         entries: List<BarEntry>,
         labels: List<String>,
         label: String,
         colorHex: String
     ) {
-        val dataSet = BarDataSet(entries, label).apply {
-            color = Color.parseColor(colorHex)
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            setDrawValues(true)
-        }
-
-        chart.apply {
-            setBackgroundColor(Color.TRANSPARENT)
-            axisRight.isEnabled = false
-            axisLeft.axisMinimum = 0f
-            setTouchEnabled(false)
-            setPinchZoom(false)
-            isDoubleTapToZoomEnabled = false
-            data = BarData(dataSet)
-            setExtraOffsets(0f, 0f, 0f, 3f)
-
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                valueFormatter = IndexAxisValueFormatter(labels)
-                granularity = 1f
-                xAxis.setYOffset(12f)
-                setDrawGridLines(false)
-                setLabelRotationAngle(0f)
+        try {
+            val dataSet = BarDataSet(entries, label).apply {
+                color = Color.parseColor(colorHex)
+                valueTextSize = 10f
+                valueTextColor = Color.BLACK
+                setDrawValues(true)
             }
 
-            axisLeft.apply {
-                axisMinimum = 0f
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0")
-                gridLineWidth = 0.5f
-                textColor = Color.parseColor("#666666")
-                textSize = 10f
-            }
+            chart.apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                axisRight.isEnabled = false
+                axisLeft.axisMinimum = 0f
+                setTouchEnabled(false)
+                setPinchZoom(false)
+                isDoubleTapToZoomEnabled = false
 
-            description.text = ""
-            legend.apply {
-                isEnabled = true
-                verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP
-                horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.RIGHT
-                xOffset = -5f
-                textColor = Color.parseColor("#333333")
+                // FIXED: Explicit casting to resolve ambiguity
+                (this as BarChart).data = BarData(dataSet)
+
+                setExtraOffsets(0f, 0f, 0f, 3f)
+
+                xAxis.apply {
+                    position = XAxis.XAxisPosition.BOTTOM
+                    valueFormatter = IndexAxisValueFormatter(labels)
+                    granularity = 1f
+                    setYOffset(12f)
+                    setDrawGridLines(false)
+                    labelRotationAngle = 0f
+                }
+
+                axisLeft.apply {
+                    axisMinimum = 0f
+                    setDrawGridLines(true)
+                    gridColor = Color.parseColor("#E0E0E0")
+                    gridLineWidth = 0.5f
+                    textColor = Color.parseColor("#666666")
+                    textSize = 10f
+                }
+
+                description.text = ""
+                legend.apply {
+                    isEnabled = true
+                    verticalAlignment = Legend.LegendVerticalAlignment.TOP
+                    horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
+                    xOffset = -5f
+                    textColor = Color.parseColor("#333333")
+                }
+                invalidate()
             }
-            invalidate()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up chart", e)
         }
     }
 
     private fun loadChartData() {
-        val phone = auth.currentUser?.phoneNumber ?: return
+        try {
+            val phone = auth.currentUser?.phoneNumber ?: return
 
-        val fromDateElectric = binding.fromDateElectric.text.toString()
-        val toDateElectric = binding.toDateElectric.text.toString()
-        val fromDateWater = binding.fromDateWater.text.toString()
-        val toDateWater = binding.toDateWater.text.toString()
+            val fromDateElectric = binding.fromDateElectric.text.toString()
+            val toDateElectric = binding.toDateElectric.text.toString()
+            val fromDateWater = binding.fromDateWater.text.toString()
+            val toDateWater = binding.toDateWater.text.toString()
 
-        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val electricMap = mutableMapOf<String, Int>()
-                val waterMap = mutableMapOf<String, Int>()
+            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val electricMap = mutableMapOf<String, Int>()
+                        val waterMap = mutableMapOf<String, Int>()
 
-                for (roomSnapshot in snapshot.children) {
-                    val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
-                    if (phoneInRoom == phone) {
-                        // Lấy dữ liệu từ history thay vì nodes
-                        val historySnapshot = roomSnapshot.child("history")
+                        for (roomSnapshot in snapshot.children) {
+                            val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                            if (phoneInRoom == phone) {
+                                // Lấy dữ liệu từ history thay vì nodes
+                                val historySnapshot = roomSnapshot.child("history")
 
-                        for (dateSnapshot in historySnapshot.children) {
-                            val dateKey = dateSnapshot.key ?: continue
+                                for (dateSnapshot in historySnapshot.children) {
+                                    val dateKey = dateSnapshot.key ?: continue
 
+                                    val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                                    val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
 
-                            val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                            val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-
-                            if (waterValue != null) {
-                                waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
-                            }
-                            if (electricValue != null) {
-                                electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
+                                    if (waterValue != null) {
+                                        waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
+                                    }
+                                    if (electricValue != null) {
+                                        electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
+                                    }
+                                }
+                                break
                             }
                         }
-                        break
+
+                        drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
+                        drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing chart data", e)
                     }
                 }
 
-                drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
-                drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e(TAG, "Database error: ${error.message}", error.toException())
+                    try {
+                        Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error showing toast", e)
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in loadChartData", e)
+        }
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        try {
+            _binding = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onDestroyView", e)
+        }
     }
 }

@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.view.WindowInsetsControllerCompat
 import com.app.buildingmanagement.databinding.ActivitySignInBinding
 import com.google.firebase.FirebaseException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.PhoneAuthCredential
@@ -21,16 +22,27 @@ import java.util.concurrent.TimeUnit
 class SignInActivity : BaseActivity() {
     private var binding: ActivitySignInBinding? = null
     private lateinit var auth: FirebaseAuth
-    private lateinit var verificationId: String
+    private var verificationId: String? = null
     private var codeSent = false
     private var isAutoVerified = false
     private var isVerificationInProgress = false
-    private lateinit var resendToken: PhoneAuthProvider.ForceResendingToken
-    private lateinit var phoneNumber: String
+    private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
+    private var phoneNumber: String = ""
 
-    // Timeout handler
+    // Timeout handling
     private var timeoutHandler: Handler? = null
     private var timeoutRunnable: Runnable? = null
+
+    // Auth state check handler
+    private var authCheckHandler: Handler? = null
+    private var authCheckRunnable: Runnable? = null
+
+    companion object {
+        private const val TAG = "SignInActivity"
+        private const val VERIFICATION_TIMEOUT = 60L
+        private const val APP_TIMEOUT = 30000L // 30 seconds
+        private const val AUTH_CHECK_DELAY = 2000L // 2 seconds
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,25 +53,27 @@ class SignInActivity : BaseActivity() {
         auth = Firebase.auth
 
         // Kiểm tra user đã đăng nhập
-        if (auth.currentUser != null) {
-            Log.d("SIGNIN", "User already logged in")
-            goToMain()
-            return
-        }
+        checkAuthenticationState()
 
         binding?.btnSendOtp?.setOnClickListener {
             sendVerificationCode()
         }
     }
 
+    private fun checkAuthenticationState() {
+        if (auth.currentUser != null) {
+            Log.d(TAG, "User already logged in")
+            goToMain()
+            return
+        }
+    }
+
     private fun sendVerificationCode() {
-        // Reset tất cả flags
         resetVerificationState()
 
         var phone = binding?.textSignInPhone?.text.toString().trim()
-        Log.d("SIGNIN", "Starting verification for phone: $phone")
+        Log.d(TAG, "Starting verification for phone: $phone")
 
-        // Validation
         if (TextUtils.isEmpty(phone)) {
             binding?.tilPhone?.error = "Vui lòng nhập số điện thoại"
             return
@@ -72,14 +86,16 @@ class SignInActivity : BaseActivity() {
 
         binding?.tilPhone?.error = null
 
-        // Format số điện thoại
         phone = formatPhoneNumber(phone)
         phoneNumber = phone
 
-        Log.d("SIGNIN", "Formatted phone number: $phoneNumber")
+        Log.d(TAG, "Formatted phone number: $phoneNumber")
 
-        // Bắt đầu verification
-        startVerification()
+        // Kiểm tra nếu là số test (thường bắt đầu bằng +84555 trong Firebase test)
+        val isTestNumber = phone.contains("555") || phone.contains("123456789")
+        Log.d(TAG, "Is test number: $isTestNumber")
+
+        startVerification(isTestNumber)
     }
 
     private fun formatPhoneNumber(phone: String): String {
@@ -95,48 +111,61 @@ class SignInActivity : BaseActivity() {
         codeSent = false
         isVerificationInProgress = false
         clearTimeout()
-        Log.d("SIGNIN", "Verification state reset")
+        clearAuthCheck()
+        Log.d(TAG, "Verification state reset")
     }
 
-    private fun startVerification() {
+    private fun startVerification(isTestNumber: Boolean = false) {
         isVerificationInProgress = true
         showProgressBar()
 
         val startTime = System.currentTimeMillis()
-        Log.d("SIGNIN", "Starting verification at: $startTime")
+        Log.d(TAG, "Starting verification at: $startTime")
 
-        // Giảm timeout xuống
-        startTimeout(30000) // 30 giây thay vì 95 giây
+        // Timeout ngắn hơn cho số test
+        val timeoutMs = if (isTestNumber) 15000L else APP_TIMEOUT
+        startTimeout(timeoutMs)
+
+        // Bắt đầu auth check sau 2 giây cho số test
+        if (isTestNumber) {
+            startAuthCheck()
+        }
 
         try {
             val options = PhoneAuthOptions.newBuilder(auth)
                 .setPhoneNumber(phoneNumber)
-                .setTimeout(0L, TimeUnit.SECONDS) // Giảm từ 90 xuống 30 giây
+                .setTimeout(VERIFICATION_TIMEOUT, TimeUnit.SECONDS)
                 .setActivity(this)
                 .setCallbacks(callbacks)
                 .build()
 
-            Log.d("SIGNIN", "Calling PhoneAuthProvider.verifyPhoneNumber")
+            Log.d(TAG, "Calling PhoneAuthProvider.verifyPhoneNumber")
             PhoneAuthProvider.verifyPhoneNumber(options)
 
         } catch (e: Exception) {
-            Log.e("SIGNIN", "Error starting verification: ${e.message}", e)
+            Log.e(TAG, "Error starting verification: ${e.message}", e)
             handleVerificationError("Lỗi khởi tạo xác thực: ${e.message}")
         }
     }
 
-    private fun startTimeout(timeoutMs: Long = 30000) {
+    private fun startTimeout(timeoutMs: Long) {
+        clearTimeout()
         timeoutHandler = Handler(Looper.getMainLooper())
         timeoutRunnable = Runnable {
             if (isVerificationInProgress && !isAutoVerified && !codeSent) {
-                val currentTime = System.currentTimeMillis()
-                Log.e("SIGNIN", "Verification timeout reached at: $currentTime")
-                handleVerificationError("Quá thời gian chờ. Vui lòng thử lại.")
+                Log.e(TAG, "Verification timeout reached")
+
+                // Kiểm tra auth state một lần nữa trước khi báo lỗi
+                if (auth.currentUser != null) {
+                    Log.d(TAG, "User authenticated during timeout - redirecting")
+                    handleSuccessfulAuth()
+                } else {
+                    handleVerificationError("Quá thời gian chờ. Vui lòng thử lại.")
+                }
             }
         }
         timeoutHandler?.postDelayed(timeoutRunnable!!, timeoutMs)
     }
-
 
     private fun clearTimeout() {
         timeoutRunnable?.let {
@@ -146,82 +175,138 @@ class SignInActivity : BaseActivity() {
         timeoutRunnable = null
     }
 
+    // Kiểm tra auth state định kỳ cho số test
+    private fun startAuthCheck() {
+        clearAuthCheck()
+        authCheckHandler = Handler(Looper.getMainLooper())
+        authCheckRunnable = object : Runnable {
+            override fun run() {
+                if (isVerificationInProgress && !isAutoVerified && !codeSent) {
+                    Log.d(TAG, "Checking auth state...")
+                    if (auth.currentUser != null) {
+                        Log.d(TAG, "User authenticated via background check")
+                        handleSuccessfulAuth()
+                        return
+                    }
+                    // Kiểm tra lại sau 1 giây
+                    authCheckHandler?.postDelayed(this, 1000)
+                }
+            }
+        }
+        authCheckHandler?.postDelayed(authCheckRunnable!!, AUTH_CHECK_DELAY)
+    }
+
+    private fun clearAuthCheck() {
+        authCheckRunnable?.let {
+            authCheckHandler?.removeCallbacks(it)
+        }
+        authCheckHandler = null
+        authCheckRunnable = null
+    }
+
     private fun handleVerificationError(message: String) {
         isVerificationInProgress = false
         hideProgressBar()
         clearTimeout()
+        clearAuthCheck()
         showToast(this, message)
+    }
+
+    private fun handleSuccessfulAuth() {
+        if (isFinishing) return
+
+        isAutoVerified = true
+        isVerificationInProgress = false
+        clearTimeout()
+        clearAuthCheck()
+        hideProgressBar()
+
+        showToast(this, "Đăng nhập thành công!")
+        goToMain()
     }
 
     private val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-//            val endTime = System.currentTimeMillis()
-//            Log.d("SIGNIN", "onVerificationCompleted at: $endTime")
-//
-//            isAutoVerified = true
-//            isVerificationInProgress = false
-//            clearTimeout()
-//            hideProgressBar()
-//            signInWithPhoneAuthCredential(credential, isAutoLogin = true)
+            val endTime = System.currentTimeMillis()
+            Log.d(TAG, "onVerificationCompleted at: $endTime")
+
+            if (!isAutoVerified && !isFinishing) {
+                isAutoVerified = true
+                isVerificationInProgress = false
+                clearTimeout()
+                clearAuthCheck()
+                hideProgressBar()
+                signInWithPhoneAuthCredential(credential, isAutoLogin = true)
+            }
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
             val endTime = System.currentTimeMillis()
-            Log.e("SIGNIN", "onVerificationFailed at: $endTime - ${e.message}", e)
+            Log.e(TAG, "onVerificationFailed at: $endTime - ${e.message}", e)
 
             isVerificationInProgress = false
             clearTimeout()
+            clearAuthCheck()
             hideProgressBar()
 
             val errorMessage = when (e) {
                 is FirebaseAuthInvalidCredentialsException -> "Số điện thoại không hợp lệ"
-                else -> "Lỗi xác thực: ${e.message}"
+                is FirebaseTooManyRequestsException -> "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+                else -> "Lỗi xác thực: ${e.localizedMessage}"
             }
             showToast(this@SignInActivity, errorMessage)
         }
 
         override fun onCodeSent(verifyId: String, token: PhoneAuthProvider.ForceResendingToken) {
             val endTime = System.currentTimeMillis()
-            Log.d("SIGNIN", "onCodeSent at: $endTime - verificationId: $verifyId")
+            Log.d(TAG, "onCodeSent at: $endTime - verificationId: $verifyId")
 
             verificationId = verifyId
             resendToken = token
             codeSent = true
 
-            if (!isAutoVerified) {
+            if (!isAutoVerified && !isFinishing) {
                 isVerificationInProgress = false
                 hideProgressBar()
                 clearTimeout()
+                clearAuthCheck()
 
                 Handler(Looper.getMainLooper()).postDelayed({
-                    if (!isAutoVerified) {
-                        Log.d("SIGNIN", "Moving to OTP screen")
+                    if (!isAutoVerified && !isFinishing) {
+                        Log.d(TAG, "Moving to OTP screen")
                         goToOtpScreen()
                     } else {
-                        Log.d("SIGNIN", "Auto verification completed, skipping OTP screen")
+                        Log.d(TAG, "Auto verification completed, skipping OTP screen")
                     }
                 }, 500)
             }
         }
     }
 
-
     private fun goToOtpScreen() {
-        val intent = Intent(this@SignInActivity, OtpActivity::class.java).apply {
-            putExtra("verificationId", verificationId)
-            putExtra("resendToken", resendToken)
-            putExtra("phoneNumber", phoneNumber)
+        val verifyId = verificationId
+        val token = resendToken
+
+        if (verifyId != null && token != null) {
+            val intent = Intent(this@SignInActivity, OtpActivity::class.java).apply {
+                putExtra("verificationId", verifyId)
+                putExtra("resendToken", token)
+                putExtra("phoneNumber", phoneNumber)
+            }
+            startActivity(intent)
+        } else {
+            Log.e(TAG, "Cannot navigate to OTP: missing verification data")
+            showToast(this, "Lỗi hệ thống. Vui lòng thử lại.")
         }
-        startActivity(intent)
     }
 
     private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential, isAutoLogin: Boolean = false) {
-        Log.d("SIGNIN", "Signing in with credential (auto: $isAutoLogin)")
+        Log.d(TAG, "Signing in with credential (auto: $isAutoLogin)")
 
         auth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    Log.d("SIGNIN", "Sign in successful")
+                if (task.isSuccessful || auth.currentUser != null) {
+                    Log.d(TAG, "Sign in successful")
                     val message = if (isAutoLogin) {
                         "Đăng nhập tự động thành công"
                     } else {
@@ -230,14 +315,12 @@ class SignInActivity : BaseActivity() {
                     showToast(this, message)
                     goToMain()
                 } else {
-                    Log.e("SIGNIN", "Sign in failed: ${task.exception?.message}")
-
-                    // Reset state nếu thất bại
+                    Log.e(TAG, "Sign in failed: ${task.exception?.message}")
                     resetVerificationState()
 
                     val errorMessage = when (task.exception) {
                         is FirebaseAuthInvalidCredentialsException -> "Mã OTP không hợp lệ"
-                        else -> "Lỗi đăng nhập: ${task.exception?.message}"
+                        else -> "Lỗi đăng nhập: ${task.exception?.localizedMessage}"
                     }
                     showToast(this, errorMessage)
                 }
@@ -245,22 +328,28 @@ class SignInActivity : BaseActivity() {
     }
 
     private fun goToMain() {
-        startActivity(Intent(this, MainActivity::class.java))
+        if (isFinishing) return
+
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
         finish()
     }
 
     override fun onStart() {
         super.onStart()
-        // Kiểm tra lại user khi activity start
-        if (auth.currentUser != null) {
-            Log.d("SIGNIN", "User found in onStart, going to main")
-            goToMain()
-        }
+        checkAuthenticationState()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkAuthenticationState()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         clearTimeout()
+        clearAuthCheck()
         binding = null
     }
 }

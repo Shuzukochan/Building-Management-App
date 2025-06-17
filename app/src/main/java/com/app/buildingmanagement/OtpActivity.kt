@@ -24,6 +24,9 @@ class OtpActivity : BaseActivity() {
     private lateinit var resendToken: PhoneAuthProvider.ForceResendingToken
     private lateinit var phoneNumber: String
 
+    private var countDownTimer: CountDownTimer? = null
+    private var isAuthenticationInProgress = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityOtpBinding.inflate(layoutInflater)
@@ -36,31 +39,43 @@ class OtpActivity : BaseActivity() {
         resendToken = intent.getParcelableExtra("resendToken")!!
         phoneNumber = intent.getStringExtra("phoneNumber")!!
 
+        Log.d("OTP", "Received verificationId: $verificationId")
+        Log.d("OTP", "Received phoneNumber: $phoneNumber")
+
         addTextWatchers()
         resendOTPTimer()
 
         binding?.btnSubmitOtp?.setOnClickListener {
-            val typedOTP = getOtpFromFields()
-            if (typedOTP.length == 6) {
-                val credential = PhoneAuthProvider.getCredential(verificationId, typedOTP)
-                showProgressBar()
-                signInWithPhoneAuthCredential(credential)
-            } else {
-                Toast.makeText(this, "Vui lòng nhập đầy đủ mã OTP", Toast.LENGTH_SHORT).show()
+            if (!isAuthenticationInProgress) {
+                val typedOTP = getOtpFromFields()
+                Log.d("OTP", "User entered OTP: '$typedOTP' (length: ${typedOTP.length})")
+
+                if (typedOTP.length == 6) {
+                    val credential = PhoneAuthProvider.getCredential(verificationId, typedOTP)
+                    showProgressBar()
+                    isAuthenticationInProgress = true
+                    signInWithPhoneAuthCredential(credential)
+                } else {
+                    Toast.makeText(this, "Vui lòng nhập đầy đủ mã OTP", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
         binding?.resendTextView?.setOnClickListener {
-            resendVerificationCode()
-            resendOTPTimer()
+            if (binding?.resendTextView?.isEnabled == true) {
+                resendVerificationCode()
+                resendOTPTimer()
+            }
         }
+
         Handler(Looper.getMainLooper()).postDelayed({
             binding?.otpInput1?.requestFocus()
         }, 100)
-
     }
 
     private fun resendVerificationCode() {
+        Log.d("OTP", "Resending verification code to: $phoneNumber")
+
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -73,11 +88,14 @@ class OtpActivity : BaseActivity() {
 
     private fun resendOTPTimer() {
         clearOtpFields()
+
+        countDownTimer?.cancel()
+
         binding?.resendTextView?.visibility = View.VISIBLE
         binding?.resendTextView?.isEnabled = false
         binding?.resendTextView?.setTextColor(getColor(android.R.color.darker_gray))
 
-        object : CountDownTimer(60000, 1000) {
+        countDownTimer = object : CountDownTimer(60000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = millisUntilFinished / 1000
                 binding?.resendTextView?.text = "Gửi lại mã OTP sau: ${seconds}s"
@@ -91,50 +109,120 @@ class OtpActivity : BaseActivity() {
         }.start()
     }
 
-
-
     private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
+        Log.d("OTP", "Attempting to sign in with credential")
+
         auth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
+                Log.d("OTP", "Authentication task completed. Success: ${task.isSuccessful}")
+
                 hideProgressBar()
+                isAuthenticationInProgress = false
+
                 if (task.isSuccessful) {
-                    Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
-                    startActivity(Intent(this, MainActivity::class.java))
-                    finish()
+                    Log.d("OTP", "Sign in successful")
+                    handleSuccessfulAuthentication()
                 } else {
-                    Log.d("OTP", "Lỗi: ${task.exception}")
-                    Toast.makeText(this, "Xác thực thất bại: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("OTP", "Sign in failed", task.exception)
+
+                    // Kiểm tra xem user có được authenticate không bất chấp lỗi
+                    val currentUser = auth.currentUser
+                    if (currentUser != null) {
+                        Log.d("OTP", "User is authenticated despite task failure")
+                        handleSuccessfulAuthentication()
+                        return@addOnCompleteListener
+                    }
+
+                    val errorMessage = when (task.exception) {
+                        is FirebaseAuthInvalidCredentialsException -> {
+                            "Mã OTP không chính xác. Vui lòng kiểm tra lại."
+                        }
+                        else -> "Xác thực thất bại: ${task.exception?.message}"
+                    }
+
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                    clearOtpFields()
+                    binding?.otpInput1?.requestFocus()
                 }
             }
+            .addOnSuccessListener {
+                Log.d("OTP", "Authentication success listener triggered")
+                // Đảm bảo navigate ngay cả khi success listener được gọi
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (auth.currentUser != null && !isFinishing) {
+                        handleSuccessfulAuthentication()
+                    }
+                }, 500)
+            }
+    }
+
+    private fun handleSuccessfulAuthentication() {
+        if (isFinishing) return
+
+        Log.d("OTP", "Handling successful authentication")
+        Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+
+        // Delay ngắn để đảm bảo Firebase state được cập nhật
+        Handler(Looper.getMainLooper()).postDelayed({
+            navigateToMain()
+        }, 200)
+    }
+
+    private fun navigateToMain() {
+        if (isFinishing) return
+
+        Log.d("OTP", "Navigating to main activity")
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-            signInWithPhoneAuthCredential(credential)
+            Log.d("OTP", "Auto verification completed")
+            if (!isAuthenticationInProgress) {
+                isAuthenticationInProgress = true
+                showProgressBar()
+                signInWithPhoneAuthCredential(credential)
+            }
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
             Log.e("OTP", "Verification Failed: ${e.message}", e)
             hideProgressBar()
-            Toast.makeText(this@OtpActivity, "Lỗi xác thực: ${e.message}", Toast.LENGTH_SHORT).show()
+            isAuthenticationInProgress = false
+
+            val errorMessage = when (e) {
+                is FirebaseAuthInvalidCredentialsException -> "Số điện thoại không hợp lệ"
+                is FirebaseTooManyRequestsException -> "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+                else -> "Lỗi xác thực: ${e.message}"
+            }
+
+            Toast.makeText(this@OtpActivity, errorMessage, Toast.LENGTH_LONG).show()
         }
 
         override fun onCodeSent(
             newVerificationId: String,
             newResendToken: PhoneAuthProvider.ForceResendingToken
         ) {
+            Log.d("OTP", "New code sent, new verificationId: $newVerificationId")
             verificationId = newVerificationId
             resendToken = newResendToken
+            Toast.makeText(this@OtpActivity, "Đã gửi lại mã OTP", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun getOtpFromFields(): String {
-        return binding?.otpInput1?.text.toString() +
+        val otp = (binding?.otpInput1?.text.toString() +
                 binding?.otpInput2?.text.toString() +
                 binding?.otpInput3?.text.toString() +
                 binding?.otpInput4?.text.toString() +
                 binding?.otpInput5?.text.toString() +
-                binding?.otpInput6?.text.toString()
+                binding?.otpInput6?.text.toString()).replace("\\s".toRegex(), "")
+
+        Log.d("OTP", "Getting OTP: '$otp'")
+        return otp
     }
 
     private fun clearOtpFields() {
@@ -163,7 +251,8 @@ class OtpActivity : BaseActivity() {
 
             current?.addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
-                    if (s?.length == 1) {
+                    val text = s.toString()
+                    if (text.length == 1) {
                         next?.requestFocus()
                     }
                 }
@@ -186,20 +275,27 @@ class OtpActivity : BaseActivity() {
         }
     }
 
-
-    inner class OtpTextWatcher(private val currentField: android.widget.EditText?, private val nextField: android.widget.EditText?, private val previousField: android.widget.EditText?) : TextWatcher {
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-        override fun afterTextChanged(s: Editable?) {
-            val text = s.toString()
-            if (text.length == 1 && nextField != null) {
-                nextField.requestFocus()
-            } else if (text.isEmpty() && previousField != null) {
-                previousField.requestFocus()
-            }
+    override fun onStart() {
+        super.onStart()
+        // Kiểm tra authentication state khi activity start
+        if (auth.currentUser != null && !isAuthenticationInProgress) {
+            Log.d("OTP", "User already authenticated in onStart")
+            navigateToMain()
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Kiểm tra lại authentication state
+        if (auth.currentUser != null && !isAuthenticationInProgress) {
+            Log.d("OTP", "User already authenticated in onResume")
+            navigateToMain()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        countDownTimer?.cancel()
+        binding = null
+    }
 }
