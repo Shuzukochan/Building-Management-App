@@ -83,5 +83,27 @@ class FCMHelper {
             unsubscribeFromTopic("building_$buildingId")
             unsubscribeFromTopic("apartment_$apartmentId")
         }
+
+        /**
+         * Hủy đăng ký tất cả các topic được sử dụng trong ứng dụng Building Management
+         * Gọi phương thức này khi người dùng đăng xuất
+         */
+        fun unsubscribeFromBuildingTopics(roomNumber: String?) {
+            // Hủy đăng ký topic "all_residents"
+            unsubscribeFromTopic("all_residents")
+
+            if (roomNumber != null) {
+                // Hủy đăng ký topic cho phòng cụ thể
+                unsubscribeFromTopic("room_$roomNumber")
+
+                // Hủy đăng ký topic cho tầng
+                val floor = roomNumber.substring(0, 1)
+                unsubscribeFromTopic("floor_$floor")
+
+                Log.d(TAG, "Hủy đăng ký tất cả các topic: all_residents, room_$roomNumber, floor_$floor")
+            } else {
+                Log.d(TAG, "Hủy đăng ký topic all_residents (không có số phòng)")
+            }
+        }
     }
 }

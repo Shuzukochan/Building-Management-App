@@ -123,7 +123,14 @@ class SettingsFragment : Fragment() {
             .setTitle("Đăng xuất")
             .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
             .setPositiveButton("Đăng xuất") { _, _ ->
+                // Hủy đăng ký tất cả các FCM topics trước khi đăng xuất
+                // để người dùng không nhận thông báo sau khi đăng xuất
+                com.app.buildingmanagement.firebase.FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
+
+                // Đăng xuất khỏi Firebase
                 auth.signOut()
+
+                // Chuyển đến màn hình đăng nhập
                 val intent = Intent(requireContext(), SignInActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 startActivity(intent)
