@@ -18,10 +18,6 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
 
 class FCMService : FirebaseMessagingService() {
 
@@ -32,17 +28,43 @@ class FCMService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, "From: ${remoteMessage.from}")
 
-        // Check if message contains a data payload
-        remoteMessage.data.isNotEmpty().let {
-            Log.d(TAG, "Message data payload: ${remoteMessage.data}")
-            handleNow(remoteMessage.data)
+        // Kiểm tra setting notification của user trước
+        if (!isNotificationEnabled()) {
+            Log.d(TAG, "Notifications disabled by user, skipping notification display")
+            return
         }
 
-        // Check if message contains a notification payload
-        remoteMessage.notification?.let {
-            Log.d(TAG, "Message Notification Body: ${it.body}")
-            sendNotification(it.title ?: "Thông báo", it.body ?: "Bạn có thông báo mới")
+        // CHỈ XỬ LÝ notification payload - không tự tạo thông báo
+        remoteMessage.notification?.let { notification ->
+            val title = notification.title ?: ""
+            val body = notification.body ?: ""
+
+            // CHỈ HIỂN THỊ NẾU CÓ TITLE HOẶC BODY TỪ SERVER
+            if (title.isNotEmpty() || body.isNotEmpty()) {
+                Log.d(TAG, "Showing notification from server: $title - $body")
+                sendNotification(title, body)
+            } else {
+                Log.d(TAG, "Empty notification from server, not showing")
+            }
+            return
         }
+
+        // XỬ LÝ data payload CHỈ KHI KHÔNG CÓ notification payload
+        if (remoteMessage.data.isNotEmpty()) {
+            Log.d(TAG, "Message data payload: ${remoteMessage.data}")
+            handleDataPayload(remoteMessage.data)
+        }
+    }
+
+    /**
+     * Kiểm tra xem user có bật notification hay không
+     */
+    private fun isNotificationEnabled(): Boolean {
+        val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val userPreference = sharedPref.getBoolean("notifications_enabled", true)
+
+        Log.d(TAG, "Notification user preference: $userPreference")
+        return userPreference
     }
 
     /**
@@ -73,7 +95,6 @@ class FCMService : FirebaseMessagingService() {
                     if (phoneInRoom == phone) {
                         val roomNumber = roomSnapshot.key
                         if (roomNumber != null) {
-                            // Chỉ cập nhật token
                             roomsRef.child(roomNumber).child("FCM").child("token").setValue(token)
                             Log.d(TAG, "Token updated for room: $roomNumber")
                         }
@@ -88,26 +109,38 @@ class FCMService : FirebaseMessagingService() {
         })
     }
 
-
     /**
-     * Handle time allotted to BroadcastReceivers.
+     * Xử lý data payload CHỈ KHI có title và body
      */
-    private fun handleNow(data: Map<String, String>) {
-        // Process data payload here
-        // You can extract specific data and handle it accordingly
+    private fun handleDataPayload(data: Map<String, String>) {
+        val title = data["title"] ?: ""
+        val body = data["body"] ?: ""
+
+        // CHỈ HIỂN THỊ NẾU CÓ TITLE HOẶC BODY TỪ DATA
+        if (title.isNotEmpty() || body.isNotEmpty()) {
+            Log.d(TAG, "Showing notification from data payload: $title - $body")
+            sendNotification(title, body)
+        } else {
+            Log.d(TAG, "No title/body in data payload, not showing notification")
+        }
     }
 
     /**
-     * Persist token to third-party servers.
-     */
-    private fun sendRegistrationToServer(token: String) {
-        // TODO: Implement this method to send token to your app server.
-    }
-
-    /**
-     * Create and show a simple notification containing the received FCM message.
+     * Create and show notification - CHỈ VỚI CONTENT TỪ SERVER
      */
     private fun sendNotification(title: String, messageBody: String) {
+        // Double check notification setting
+        if (!isNotificationEnabled()) {
+            Log.d(TAG, "Notification disabled by user, not showing notification")
+            return
+        }
+
+        // KHÔNG HIỂN THỊ NẾU KHÔNG CÓ CONTENT
+        if (title.isEmpty() && messageBody.isEmpty()) {
+            Log.d(TAG, "Empty notification content, not showing")
+            return
+        }
+
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pendingIntent = PendingIntent.getActivity(
@@ -117,27 +150,48 @@ class FCMService : FirebaseMessagingService() {
 
         val channelId = "fcm_default_channel"
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.icon_hcmute_notification)
-            .setContentTitle(title)
-            .setContentText(messageBody)
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
             .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        // CHỈ SET TITLE NẾU CÓ
+        if (title.isNotEmpty()) {
+            notificationBuilder.setContentTitle(title)
+        }
+
+        // CHỈ SET BODY NẾU CÓ
+        if (messageBody.isNotEmpty()) {
+            notificationBuilder.setContentText(messageBody)
+        }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Since android Oreo notification channel is needed.
+        // Create notification channel
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+
+            val importance = if (notificationsEnabled) {
+                NotificationManager.IMPORTANCE_DEFAULT
+            } else {
+                NotificationManager.IMPORTANCE_NONE
+            }
+
             val channel = NotificationChannel(
                 channelId,
                 "Building Management Notifications",
-                NotificationManager.IMPORTANCE_DEFAULT
+                importance
             )
+            channel.description = "Thông báo từ ban quản lý tòa nhà"
             notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(0, notificationBuilder.build())
+        Log.d(TAG, "Showing notification: '$title' - '$messageBody'")
+        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
     }
 
     companion object {

@@ -17,6 +17,7 @@ object SharedDataManager {
 
     interface DataUpdateListener {
         fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String)
+        fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) // Thêm method mới
     }
 
     fun getCachedRoomSnapshot(): DataSnapshot? {
@@ -34,6 +35,8 @@ object SharedDataManager {
     fun getCachedUserPhone(): String? = cachedUserPhone
 
     fun setCachedData(roomSnapshot: DataSnapshot, roomNumber: String, userPhone: String) {
+        val isFirstTimeCache = cachedRoomSnapshot == null
+
         cachedRoomSnapshot = roomSnapshot
         cachedUserRoomNumber = roomNumber
         cachedUserPhone = userPhone
@@ -44,7 +47,13 @@ object SharedDataManager {
         // Notify all listeners
         listeners.forEach { listener ->
             try {
-                listener.onDataUpdated(roomSnapshot, roomNumber)
+                if (isFirstTimeCache) {
+                    // Đây là lần đầu có cache, gọi onCacheReady
+                    listener.onCacheReady(roomSnapshot, roomNumber)
+                } else {
+                    // Đây là update data, gọi onDataUpdated
+                    listener.onDataUpdated(roomSnapshot, roomNumber)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error notifying listener", e)
             }
@@ -54,6 +63,16 @@ object SharedDataManager {
     fun addListener(listener: DataUpdateListener) {
         listeners.add(listener)
         Log.d(TAG, "Listener added, total: ${listeners.size}")
+
+        // Nếu đã có cache, gọi ngay onCacheReady
+        if (isCacheValid() && cachedRoomSnapshot != null && cachedUserRoomNumber != null) {
+            try {
+                listener.onCacheReady(cachedRoomSnapshot!!, cachedUserRoomNumber!!)
+                Log.d(TAG, "Immediately provided cached data to new listener")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error providing cached data to new listener", e)
+            }
+        }
     }
 
     fun removeListener(listener: DataUpdateListener) {
@@ -74,5 +93,11 @@ object SharedDataManager {
         return System.currentTimeMillis() - lastUpdateTime < CACHE_DURATION &&
                 cachedRoomSnapshot != null &&
                 cachedUserRoomNumber != null
+    }
+
+    // Thêm method để force refresh cache
+    fun refreshCache() {
+        lastUpdateTime = 0
+        Log.d(TAG, "Cache refresh requested")
     }
 }

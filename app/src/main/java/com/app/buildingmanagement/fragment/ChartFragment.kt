@@ -66,14 +66,22 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         // Đăng ký listener để nhận update từ SharedDataManager
         SharedDataManager.addListener(this)
 
-        // Load data với cache
+        // Load data với cache - sẽ được xử lý bởi onCacheReady nếu có cache
         loadChartDataWithCache()
     }
 
     override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
-        // Được gọi khi có dữ liệu mới từ HomeFragment
+        if (_binding == null || !isAdded) return
+
         Log.d(TAG, "Received data update for room: $roomNumber")
-        // Có thể refresh chart ở đây nếu cần
+        loadChartDataFromSnapshot(roomSnapshot)
+    }
+
+    override fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) {
+        if (_binding == null || !isAdded) return
+
+        Log.d(TAG, "Cache ready for room: $roomNumber")
+        // Load ngay từ cache
         loadChartDataFromSnapshot(roomSnapshot)
     }
 
@@ -93,8 +101,9 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             // Sử dụng dữ liệu cache → hiển thị ngay
             loadChartDataFromSnapshot(cachedSnapshot)
         } else {
-            Log.d(TAG, "No cache available, loading from Firebase")
-            // Fallback: tải dữ liệu như cũ
+            Log.d(TAG, "No cache available, waiting for cache or loading from Firebase")
+            // Sẽ được xử lý bởi onCacheReady khi HomeFragment load xong
+            // Hoặc fallback load từ Firebase nếu cần
             loadChartDataFromFirebase()
         }
     }
