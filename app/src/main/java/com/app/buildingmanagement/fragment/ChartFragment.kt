@@ -14,7 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.databinding.FragmentChartBinding
 import com.app.buildingmanagement.dialog.MonthPickerDialog
-import com.github.mikephil.charting.charts.BarChart
+import com.app.buildingmanagement.data.SharedDataManager
 import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
@@ -26,7 +26,7 @@ import com.google.firebase.database.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ChartFragment : Fragment() {
+class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
     private var _binding: FragmentChartBinding? = null
     private val binding get() = _binding!!
@@ -58,21 +58,100 @@ class ChartFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        try {
-            initializeFirebase()
-            setupSpinners()
-            setupDatePickers()
-            setDefaultRanges()
-            loadChartData()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in onViewCreated", e)
-        }
+        initializeFirebase()
+        setupSpinners()
+        setupDatePickers()
+        setDefaultRanges()
+
+        // Đăng ký listener để nhận update từ SharedDataManager
+        SharedDataManager.addListener(this)
+
+        // Load data với cache
+        loadChartDataWithCache()
+    }
+
+    override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
+        // Được gọi khi có dữ liệu mới từ HomeFragment
+        Log.d(TAG, "Received data update for room: $roomNumber")
+        // Có thể refresh chart ở đây nếu cần
+        loadChartDataFromSnapshot(roomSnapshot)
     }
 
     private fun initializeFirebase() {
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
         roomsRef = database.getReference("rooms")
+    }
+
+    private fun loadChartDataWithCache() {
+        // Kiểm tra cache trước
+        val cachedSnapshot = SharedDataManager.getCachedRoomSnapshot()
+        val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
+
+        if (cachedSnapshot != null && cachedRoomNumber != null) {
+            Log.d(TAG, "Using cached data for room: $cachedRoomNumber")
+            // Sử dụng dữ liệu cache → hiển thị ngay
+            loadChartDataFromSnapshot(cachedSnapshot)
+        } else {
+            Log.d(TAG, "No cache available, loading from Firebase")
+            // Fallback: tải dữ liệu như cũ
+            loadChartDataFromFirebase()
+        }
+    }
+
+    private fun loadChartDataFromSnapshot(roomSnapshot: DataSnapshot) {
+        val electricMap = mutableMapOf<String, Int>()
+        val waterMap = mutableMapOf<String, Int>()
+
+        // Lấy dữ liệu từ history
+        val historySnapshot = roomSnapshot.child("history")
+
+        for (dateSnapshot in historySnapshot.children) {
+            val dateKey = dateSnapshot.key ?: continue
+
+            val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+            val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+
+            if (waterValue != null) {
+                waterMap[dateKey] = waterValue
+            }
+            if (electricValue != null) {
+                electricMap[dateKey] = electricValue
+            }
+        }
+
+        val fromDateElectric = binding.fromDateElectric.text.toString()
+        val toDateElectric = binding.toDateElectric.text.toString()
+        val fromDateWater = binding.fromDateWater.text.toString()
+        val toDateWater = binding.toDateWater.text.toString()
+
+        drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
+        drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
+    }
+
+    private fun loadChartDataFromFirebase() {
+        val phone = auth.currentUser?.phoneNumber ?: return
+
+        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                for (roomSnapshot in snapshot.children) {
+                    val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                    if (phoneInRoom == phone) {
+                        val roomNumber = roomSnapshot.key
+                        if (roomNumber != null) {
+                            // Cập nhật cache
+                            SharedDataManager.setCachedData(roomSnapshot, roomNumber, phone)
+                        }
+                        loadChartDataFromSnapshot(roomSnapshot)
+                        break
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun setupSpinners() {
@@ -91,7 +170,7 @@ class ChartFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 selectedElectricMode = adapter.getItem(position) ?: "Tháng"
                 setDefaultRange(true)
-                loadChartData()
+                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
@@ -100,7 +179,7 @@ class ChartFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 selectedWaterMode = adapter.getItem(position) ?: "Tháng"
                 setDefaultRange(false)
-                loadChartData()
+                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
@@ -152,7 +231,7 @@ class ChartFragment : Fragment() {
                 calendar.set(Calendar.MONTH, pickedMonth)
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 editText.setText(displayMonthFormatter.format(calendar.time))
-                loadChartData()
+                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
             }.show()
         } catch (e: Exception) {
             DatePickerDialog(
@@ -160,7 +239,7 @@ class ChartFragment : Fragment() {
                 { _, year, month, _ ->
                     calendar.set(year, month, 1)
                     editText.setText(displayMonthFormatter.format(calendar.time))
-                    loadChartData()
+                    loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
                 },
                 selectedYear,
                 selectedMonth,
@@ -183,7 +262,7 @@ class ChartFragment : Fragment() {
             { _, year, month, day ->
                 calendar.set(year, month, day)
                 editText.setText(displayDateFormatter.format(calendar.time))
-                loadChartData()
+                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
             },
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),
@@ -306,132 +385,63 @@ class ChartFragment : Fragment() {
     }
 
     private fun setupChart(
-        chart: BarChart,
+        chart: com.github.mikephil.charting.charts.BarChart,
         entries: List<BarEntry>,
         labels: List<String>,
         label: String,
         colorHex: String
     ) {
-        try {
-            val dataSet = BarDataSet(entries, label).apply {
-                color = Color.parseColor(colorHex)
-                valueTextSize = 10f
-                valueTextColor = Color.BLACK
-                setDrawValues(true)
-            }
-
-            chart.apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                axisRight.isEnabled = false
-                axisLeft.axisMinimum = 0f
-                setTouchEnabled(false)
-                setPinchZoom(false)
-                isDoubleTapToZoomEnabled = false
-
-                // FIXED: Explicit casting to resolve ambiguity
-                (this as BarChart).data = BarData(dataSet)
-
-                setExtraOffsets(0f, 0f, 0f, 3f)
-
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    valueFormatter = IndexAxisValueFormatter(labels)
-                    granularity = 1f
-                    setYOffset(12f)
-                    setDrawGridLines(false)
-                    labelRotationAngle = 0f
-                }
-
-                axisLeft.apply {
-                    axisMinimum = 0f
-                    setDrawGridLines(true)
-                    gridColor = Color.parseColor("#E0E0E0")
-                    gridLineWidth = 0.5f
-                    textColor = Color.parseColor("#666666")
-                    textSize = 10f
-                }
-
-                description.text = ""
-                legend.apply {
-                    isEnabled = true
-                    verticalAlignment = Legend.LegendVerticalAlignment.TOP
-                    horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
-                    xOffset = -5f
-                    textColor = Color.parseColor("#333333")
-                }
-                invalidate()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting up chart", e)
+        val dataSet = BarDataSet(entries, label).apply {
+            color = Color.parseColor(colorHex)
+            valueTextSize = 10f
+            valueTextColor = Color.BLACK
+            setDrawValues(true)
         }
-    }
 
-    private fun loadChartData() {
-        try {
-            val phone = auth.currentUser?.phoneNumber ?: return
+        chart.apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            axisRight.isEnabled = false
+            axisLeft.axisMinimum = 0f
+            setTouchEnabled(false)
+            setPinchZoom(false)
+            isDoubleTapToZoomEnabled = false
+            data = BarData(dataSet)
+            setExtraOffsets(0f, 0f, 0f, 3f)
 
-            val fromDateElectric = binding.fromDateElectric.text.toString()
-            val toDateElectric = binding.toDateElectric.text.toString()
-            val fromDateWater = binding.fromDateWater.text.toString()
-            val toDateWater = binding.toDateWater.text.toString()
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                valueFormatter = IndexAxisValueFormatter(labels)
+                granularity = 1f
+                xAxis.setYOffset(12f)
+                setDrawGridLines(false)
+                setLabelRotationAngle(0f)
+            }
 
-            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    try {
-                        val electricMap = mutableMapOf<String, Int>()
-                        val waterMap = mutableMapOf<String, Int>()
+            axisLeft.apply {
+                axisMinimum = 0f
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+                gridLineWidth = 0.5f
+                textColor = Color.parseColor("#666666")
+                textSize = 10f
+            }
 
-                        for (roomSnapshot in snapshot.children) {
-                            val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
-                            if (phoneInRoom == phone) {
-                                // Lấy dữ liệu từ history thay vì nodes
-                                val historySnapshot = roomSnapshot.child("history")
-
-                                for (dateSnapshot in historySnapshot.children) {
-                                    val dateKey = dateSnapshot.key ?: continue
-
-                                    val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                                    val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-
-                                    if (waterValue != null) {
-                                        waterMap[dateKey] = (waterMap[dateKey] ?: 0) + waterValue
-                                    }
-                                    if (electricValue != null) {
-                                        electricMap[dateKey] = (electricMap[dateKey] ?: 0) + electricValue
-                                    }
-                                }
-                                break
-                            }
-                        }
-
-                        drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
-                        drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
-
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing chart data", e)
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e(TAG, "Database error: ${error.message}", error.toException())
-                    try {
-                        Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error showing toast", e)
-                    }
-                }
-            })
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in loadChartData", e)
+            description.text = ""
+            legend.apply {
+                isEnabled = true
+                verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP
+                horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.RIGHT
+                xOffset = -5f
+                textColor = Color.parseColor("#333333")
+            }
+            invalidate()
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        try {
-            _binding = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in onDestroyView", e)
-        }
+        // Hủy đăng ký listener
+        SharedDataManager.removeListener(this)
+        _binding = null
     }
 }

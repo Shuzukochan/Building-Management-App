@@ -23,6 +23,7 @@ import com.app.buildingmanagement.SignInActivity
 import com.app.buildingmanagement.adapter.SimplePaymentAdapter
 import com.app.buildingmanagement.databinding.FragmentSettingsBinding
 import com.app.buildingmanagement.model.SimplePayment
+import com.app.buildingmanagement.data.SharedDataManager
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -37,6 +38,10 @@ class SettingsFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private var currentRoomNumber: String? = null
 
+    companion object {
+        private const val TAG = "SettingsFragment"
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -48,28 +53,15 @@ class SettingsFragment : Fragment() {
 
         binding?.tvPhoneNumber?.text = phone?.replace("+84", "0") ?: "Chưa có số điện thoại"
 
-        if (phone != null) {
-            val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
-
-            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    var foundRoom: String? = null
-                    for (roomSnapshot in snapshot.children) {
-                        val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
-                        if (phoneInRoom == phone) {
-                            foundRoom = roomSnapshot.key
-                            break
-                        }
-                    }
-                    currentRoomNumber = foundRoom
-                    binding?.tvRoomNumber?.text = foundRoom?.let { "Phòng $it" } ?: "Không xác định phòng"
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    binding?.tvRoomNumber?.text = "Lỗi kết nối"
-                    currentRoomNumber = null
-                }
-            })
+        // Kiểm tra cache trước
+        val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
+        if (cachedRoomNumber != null) {
+            Log.d(TAG, "Using cached room number: $cachedRoomNumber")
+            currentRoomNumber = cachedRoomNumber
+            binding?.tvRoomNumber?.text = "Phòng $cachedRoomNumber"
+        } else if (phone != null) {
+            Log.d(TAG, "No cache, loading from Firebase")
+            loadRoomNumberFromFirebase(phone)
         } else {
             binding?.tvRoomNumber?.text = "Không xác định"
             currentRoomNumber = null
@@ -118,6 +110,41 @@ class SettingsFragment : Fragment() {
         return binding!!.root
     }
 
+    private fun loadRoomNumberFromFirebase(phone: String) {
+        val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
+
+        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                var foundRoom: String? = null
+                var foundRoomSnapshot: DataSnapshot? = null
+
+                for (roomSnapshot in snapshot.children) {
+                    val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                    if (phoneInRoom == phone) {
+                        foundRoom = roomSnapshot.key
+                        foundRoomSnapshot = roomSnapshot
+                        break
+                    }
+                }
+
+                if (foundRoom != null && foundRoomSnapshot != null) {
+                    // Cập nhật cache
+                    SharedDataManager.setCachedData(foundRoomSnapshot, foundRoom, phone)
+                    Log.d(TAG, "Updated cache with room: $foundRoom")
+                }
+
+                currentRoomNumber = foundRoom
+                binding?.tvRoomNumber?.text = foundRoom?.let { "Phòng $it" } ?: "Không xác định phòng"
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                binding?.tvRoomNumber?.text = "Lỗi kết nối"
+                currentRoomNumber = null
+                Log.e(TAG, "Error loading room number: ${error.message}")
+            }
+        })
+    }
+
     private fun showLogoutConfirmation() {
         AlertDialog.Builder(requireContext())
             .setTitle("Đăng xuất")
@@ -126,6 +153,10 @@ class SettingsFragment : Fragment() {
                 // Hủy đăng ký tất cả các FCM topics trước khi đăng xuất
                 // để người dùng không nhận thông báo sau khi đăng xuất
                 com.app.buildingmanagement.firebase.FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
+
+                // Clear cache khi đăng xuất
+                SharedDataManager.clearCache()
+                Log.d(TAG, "Cache cleared on logout")
 
                 // Đăng xuất khỏi Firebase
                 auth.signOut()
@@ -223,6 +254,15 @@ class SettingsFragment : Fragment() {
 
     // Method mới cho Payment History Bottom Sheet
     private fun showPaymentHistoryBottomSheet() {
+        // Kiểm tra cache trước khi mở payment history
+        if (currentRoomNumber == null) {
+            val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
+            if (cachedRoomNumber != null) {
+                currentRoomNumber = cachedRoomNumber
+                Log.d(TAG, "Using cached room number for payment history: $cachedRoomNumber")
+            }
+        }
+
         val bottomSheetDialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.bottom_sheet_payment_history, null)
 
@@ -250,6 +290,8 @@ class SettingsFragment : Fragment() {
         progressBar.visibility = View.VISIBLE
 
         if (currentRoomNumber != null) {
+            Log.d(TAG, "Loading payment history for room: $currentRoomNumber")
+
             val paymentsRef = FirebaseDatabase.getInstance()
                 .getReference("rooms")
                 .child(currentRoomNumber!!)
@@ -257,28 +299,19 @@ class SettingsFragment : Fragment() {
 
             paymentsRef.addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    Log.d("PaymentDebug", "Room: $currentRoomNumber")
-                    Log.d("PaymentDebug", "Snapshot exists: ${snapshot.exists()}")
-                    Log.d("PaymentDebug", "Children count: ${snapshot.childrenCount}")
+                    Log.d(TAG, "Payment data - Room: $currentRoomNumber, Exists: ${snapshot.exists()}, Children: ${snapshot.childrenCount}")
 
                     paymentList.clear()
 
                     for (monthSnapshot in snapshot.children) {
-                        Log.d("PaymentDebug", "Month key: ${monthSnapshot.key}")
-                        Log.d("PaymentDebug", "Month data: ${monthSnapshot.value}")
-
                         val amount = monthSnapshot.child("amount").getValue(Long::class.java) ?: 0
                         val timestamp = monthSnapshot.child("timestamp").getValue(String::class.java) ?: ""
                         val status = monthSnapshot.child("status").getValue(String::class.java) ?: ""
-
-                        Log.d("PaymentDebug", "Amount: $amount, Timestamp: $timestamp, Status: $status")
 
                         if (amount > 0 && timestamp.isNotEmpty()) {
                             paymentList.add(SimplePayment(amount, timestamp, status))
                         }
                     }
-
-                    Log.d("PaymentDebug", "Final payment list size: ${paymentList.size}")
 
                     // Chạy trên UI thread để đảm bảo cập nhật UI
                     requireActivity().runOnUiThread {
@@ -287,14 +320,14 @@ class SettingsFragment : Fragment() {
                         if (paymentList.isEmpty()) {
                             layoutEmpty.visibility = View.VISIBLE
                             recyclerView.visibility = View.GONE
-                            Log.d("PaymentDebug", "Showing empty state")
+                            Log.d(TAG, "No payment history found")
                         } else {
                             layoutEmpty.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
                             // Sắp xếp theo thời gian mới nhất
                             paymentList.sortByDescending { it.timestamp }
                             adapter.notifyDataSetChanged()
-                            Log.d("PaymentDebug", "Showing ${paymentList.size} payments")
+                            Log.d(TAG, "Loaded ${paymentList.size} payment records")
                         }
                     }
                 }
@@ -306,16 +339,16 @@ class SettingsFragment : Fragment() {
                         recyclerView.visibility = View.GONE
                     }
                     Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "Error loading payment history: ${error.message}")
                 }
             })
         } else {
+            Log.w(TAG, "No room number available for payment history")
             progressBar.visibility = View.GONE
             layoutEmpty.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
         }
     }
-
-
 
     private fun openDialer(phoneNumber: String) {
         try {
