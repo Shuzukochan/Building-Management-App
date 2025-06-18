@@ -1,6 +1,10 @@
 package com.app.buildingmanagement
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -50,6 +54,8 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize FCM (non-blocking)
         initializeFCMToken()
+
+        updateNotificationChannelBasedOnSettings()
 
         // Handle notification intent if any
         handleNotificationIntent()
@@ -158,6 +164,35 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving FCM token to preferences", e)
+        }
+    }
+
+    private fun updateNotificationChannelBasedOnSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val sharedPref = getSharedPreferences("app_settings", MODE_PRIVATE)
+            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "fcm_default_channel"
+
+            val importance = if (notificationsEnabled) {
+                NotificationManager.IMPORTANCE_DEFAULT
+            } else {
+                NotificationManager.IMPORTANCE_NONE
+            }
+
+            val channel = NotificationChannel(
+                channelId,
+                "Building Management Notifications",
+                importance
+            ).apply {
+                description = "Thông báo từ ban quản lý tòa nhà"
+                enableLights(true)
+                enableVibration(true)
+            }
+
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel refreshed on app start - enabled: $notificationsEnabled")
         }
     }
 

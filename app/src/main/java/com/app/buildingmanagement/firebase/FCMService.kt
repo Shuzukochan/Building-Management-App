@@ -28,28 +28,29 @@ class FCMService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, "From: ${remoteMessage.from}")
 
-        // Kiểm tra setting notification của user trước
+        // KIỂM TRA SETTING NOTIFICATION CỦA USER TRƯỚC
         if (!isNotificationEnabled()) {
             Log.d(TAG, "Notifications disabled by user, skipping notification display")
             return
         }
 
-        // CHỈ XỬ LÝ notification payload - không tự tạo thông báo
+        // Ưu tiên xử lý notification payload trước
         remoteMessage.notification?.let { notification ->
             val title = notification.title ?: ""
             val body = notification.body ?: ""
 
-            // CHỈ HIỂN THỊ NẾU CÓ TITLE HOẶC BODY TỪ SERVER
+            Log.d(TAG, "Received notification: '$title' - '$body'")
+
+            // CHỈ HIỂN THỊ NẾU CÓ NỘI DUNG TỪ SERVER
             if (title.isNotEmpty() || body.isNotEmpty()) {
-                Log.d(TAG, "Showing notification from server: $title - $body")
                 sendNotification(title, body)
             } else {
-                Log.d(TAG, "Empty notification from server, not showing")
+                Log.d(TAG, "Empty notification content, not displaying")
             }
-            return
+            return // Return để không xử lý data payload nữa
         }
 
-        // XỬ LÝ data payload CHỈ KHI KHÔNG CÓ notification payload
+        // Chỉ xử lý data payload nếu không có notification payload
         if (remoteMessage.data.isNotEmpty()) {
             Log.d(TAG, "Message data payload: ${remoteMessage.data}")
             handleDataPayload(remoteMessage.data)
@@ -61,10 +62,27 @@ class FCMService : FirebaseMessagingService() {
      */
     private fun isNotificationEnabled(): Boolean {
         val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val userPreference = sharedPref.getBoolean("notifications_enabled", true)
+        val userPreference = sharedPref.getBoolean("notifications_enabled", true) // Default là true
 
         Log.d(TAG, "Notification user preference: $userPreference")
         return userPreference
+    }
+
+    /**
+     * Xử lý data payload
+     */
+    private fun handleDataPayload(data: Map<String, String>) {
+        val title = data["title"] ?: ""
+        val body = data["body"] ?: ""
+
+        Log.d(TAG, "Data payload - title: '$title', body: '$body'")
+
+        // Chỉ hiển thị nếu có nội dung
+        if (title.isNotEmpty() || body.isNotEmpty()) {
+            sendNotification(title, body)
+        } else {
+            Log.d(TAG, "No meaningful content in data payload")
+        }
     }
 
     /**
@@ -110,32 +128,16 @@ class FCMService : FirebaseMessagingService() {
     }
 
     /**
-     * Xử lý data payload CHỈ KHI có title và body
-     */
-    private fun handleDataPayload(data: Map<String, String>) {
-        val title = data["title"] ?: ""
-        val body = data["body"] ?: ""
-
-        // CHỈ HIỂN THỊ NẾU CÓ TITLE HOẶC BODY TỪ DATA
-        if (title.isNotEmpty() || body.isNotEmpty()) {
-            Log.d(TAG, "Showing notification from data payload: $title - $body")
-            sendNotification(title, body)
-        } else {
-            Log.d(TAG, "No title/body in data payload, not showing notification")
-        }
-    }
-
-    /**
-     * Create and show notification - CHỈ VỚI CONTENT TỪ SERVER
+     * Create and show notification - CHỈ HIỂN THỊ KHI USER CHO PHÉP
      */
     private fun sendNotification(title: String, messageBody: String) {
         // Double check notification setting
         if (!isNotificationEnabled()) {
-            Log.d(TAG, "Notification disabled by user, not showing notification")
+            Log.d(TAG, "Notification disabled by user during sendNotification, not showing")
             return
         }
 
-        // KHÔNG HIỂN THỊ NẾU KHÔNG CÓ CONTENT
+        // Không hiển thị nếu không có nội dung
         if (title.isEmpty() && messageBody.isEmpty()) {
             Log.d(TAG, "Empty notification content, not showing")
             return
@@ -157,25 +159,69 @@ class FCMService : FirebaseMessagingService() {
             .setSound(defaultSoundUri)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setDefaults(NotificationCompat.DEFAULT_ALL) // THÊM DEFAULT SETTINGS
 
-        // CHỈ SET TITLE NẾU CÓ
+        // Chỉ set title nếu có
         if (title.isNotEmpty()) {
             notificationBuilder.setContentTitle(title)
+        } else {
+            notificationBuilder.setContentTitle("Test Notification") // FALLBACK TITLE
         }
 
-        // CHỈ SET BODY NẾU CÓ
+        // Chỉ set body nếu có
         if (messageBody.isNotEmpty()) {
             notificationBuilder.setContentText(messageBody)
+        } else {
+            notificationBuilder.setContentText("Test Body") // FALLBACK BODY
         }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create notification channel
+        // Tạo notification channel với importance phù hợp
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+            createOrUpdateNotificationChannel(notificationManager, channelId)
 
-            val importance = if (notificationsEnabled) {
+            // KIỂM TRA CHANNEL SAU KHI TẠO
+            val channel = notificationManager.getNotificationChannel(channelId)
+            if (channel == null) {
+                Log.e(TAG, "Channel is null after creation!")
+                return
+            }
+
+            if (channel.importance == NotificationManager.IMPORTANCE_NONE) {
+                Log.w(TAG, "Channel importance is NONE, notification might not show")
+            }
+
+            Log.d(TAG, "Channel status - importance: ${channel.importance}, blocked: ${channel.importance == NotificationManager.IMPORTANCE_NONE}")
+        }
+
+        // Sử dụng timestamp làm notification ID để tránh ghi đè
+        val notificationId = System.currentTimeMillis().toInt()
+
+        try {
+            Log.d(TAG, "Attempting to show notification (ID: $notificationId): '$title' - '$messageBody'")
+            notificationManager.notify(notificationId, notificationBuilder.build())
+            Log.d(TAG, "Notification.notify() called successfully")
+
+            // VERIFY NOTIFICATION HIỂN THỊ
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val activeNotifications = notificationManager.activeNotifications
+                Log.d(TAG, "Active notifications count: ${activeNotifications.size}")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing notification", e)
+        }
+    }
+
+    /**
+     * Tạo hoặc cập nhật notification channel dựa trên user setting
+     */
+    private fun createOrUpdateNotificationChannel(notificationManager: NotificationManager, channelId: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Kiểm tra setting để quyết định importance
+            val userEnabled = isNotificationEnabled()
+            val importance = if (userEnabled) {
                 NotificationManager.IMPORTANCE_DEFAULT
             } else {
                 NotificationManager.IMPORTANCE_NONE
@@ -185,13 +231,15 @@ class FCMService : FirebaseMessagingService() {
                 channelId,
                 "Building Management Notifications",
                 importance
-            )
-            channel.description = "Thông báo từ ban quản lý tòa nhà"
-            notificationManager.createNotificationChannel(channel)
-        }
+            ).apply {
+                description = "Thông báo từ ban quản lý tòa nhà"
+                enableLights(true)
+                enableVibration(true)
+            }
 
-        Log.d(TAG, "Showing notification: '$title' - '$messageBody'")
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel updated - importance: $importance (user enabled: $userEnabled)")
+        }
     }
 
     companion object {

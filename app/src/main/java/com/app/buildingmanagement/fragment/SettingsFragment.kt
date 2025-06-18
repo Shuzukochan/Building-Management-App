@@ -1,6 +1,7 @@
 package com.app.buildingmanagement.fragment
 
 import android.Manifest
+import android.app.NotificationChannel
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -128,9 +129,44 @@ class SettingsFragment : Fragment() {
 
         // Handle switch toggle
         binding?.switchNotifications?.setOnCheckedChangeListener { _, isChecked ->
-            if (!isUpdatingSwitch) {
-                handleNotificationToggle(isChecked)
+            val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            with(sharedPref.edit()) {
+                putBoolean("notifications_enabled", isChecked)
+                apply()
             }
+
+            // CẬP NHẬT NOTIFICATION CHANNEL KHI USER THAY ĐỔI SETTING
+            updateNotificationChannel(isChecked)
+
+            val message = if (isChecked) "Đã bật thông báo" else "Đã tắt thông báo"
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+
+    }
+
+    private fun updateNotificationChannel(enabled: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "fcm_default_channel"
+
+            val importance = if (enabled) {
+                NotificationManager.IMPORTANCE_DEFAULT
+            } else {
+                NotificationManager.IMPORTANCE_NONE
+            }
+
+            val channel = NotificationChannel(
+                channelId,
+                "Building Management Notifications",
+                importance
+            ).apply {
+                description = "Thông báo từ ban quản lý tòa nhà"
+                enableLights(true)
+                enableVibration(true)
+            }
+
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel updated from Settings - enabled: $enabled")
         }
     }
 
