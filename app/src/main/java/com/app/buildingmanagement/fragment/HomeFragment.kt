@@ -48,8 +48,8 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Đăng ký topic all_residents ngay khi đăng nhập
-        subscribeToAllResidents()
+        // BỎ AUTO-SUBSCRIBE - CHỈ LOAD DATA
+        Log.d(TAG, "HomeFragment loaded - subscription handled by MainActivity and SettingsFragment")
 
         val phone = auth.currentUser?.phoneNumber
 
@@ -157,12 +157,6 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun subscribeToAllResidents() {
-        // Đăng ký topic all_residents ngay khi đăng nhập
-        FCMHelper.subscribeToTopic("all_residents")
-        Log.d(TAG, "Subscribed to topic: all_residents")
-    }
-
     private fun sendFCMTokenToFirebase(roomNumber: String) {
         // Lấy FCM token từ SharedPreferences
         val sharedPref = requireActivity().getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
@@ -184,8 +178,8 @@ class HomeFragment : Fragment() {
                     Log.d(TAG, "FCM token saved successfully for room: $roomNumber")
                     Log.d(TAG, "Token: $token")
 
-                    // Đăng ký topics và gửi topics lên Firebase
-                    subscribeToTopicsAndSendToFirebase(roomNumber)
+                    // CHỈ GỬI TOPICS INFO LÊN FIREBASE ĐỂ WEB BIẾT - KHÔNG SUBSCRIBE
+                    sendTopicsInfoToFirebase(roomNumber)
                 }
                 .addOnFailureListener { e ->
                     Log.e(TAG, "Error saving FCM token for room: $roomNumber", e)
@@ -212,30 +206,26 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun subscribeToTopicsAndSendToFirebase(roomNumber: String) {
+    /**
+     * CHỈ GỬI TOPICS INFO LÊN FIREBASE ĐỂ WEB CÓ THỂ TARGET
+     * KHÔNG TỰ ĐỘNG SUBSCRIBE TOPICS
+     */
+    private fun sendTopicsInfoToFirebase(roomNumber: String) {
         try {
-            // Đăng ký topic cho phòng cụ thể
-            FCMHelper.subscribeToTopic("room_$roomNumber")
-
-            // Xử lý topic tầng dựa trên chữ số đầu của room
-            val floor = roomNumber.substring(0, 1) // Lấy ký tự đầu làm tầng
-            val floorTopic = "floor_$floor"
-            FCMHelper.subscribeToTopic(floorTopic)
-
-            Log.d(TAG, "Subscribed to topics: room_$roomNumber, $floorTopic")
+            Log.d(TAG, "Sending topics info to Firebase for room: $roomNumber (subscription handled elsewhere)")
 
             // Tạo danh sách topics để gửi lên Firebase
             val topics = listOf(
                 "all_residents",
                 "room_$roomNumber",
-                floorTopic
+                "floor_${roomNumber.substring(0, 1)}"
             )
 
-            // Gửi danh sách topics lên Firebase
+            // Chỉ gửi danh sách topics lên Firebase để web có thể target
             sendTopicsToFirebase(roomNumber, topics)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error subscribing to topics", e)
+            Log.e(TAG, "Error sending topics info", e)
         }
     }
 
@@ -247,11 +237,11 @@ class HomeFragment : Fragment() {
             .child("topics")
             .setValue(topics)
             .addOnSuccessListener {
-                Log.d(TAG, "Topics sent to Firebase successfully for room: $roomNumber")
-                Log.d(TAG, "Topics: $topics")
+                Log.d(TAG, "Topics info sent to Firebase successfully for room: $roomNumber")
+                Log.d(TAG, "Topics info: $topics")
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Error sending topics to Firebase for room: $roomNumber", e)
+                Log.e(TAG, "Error sending topics info to Firebase for room: $roomNumber", e)
             }
     }
 

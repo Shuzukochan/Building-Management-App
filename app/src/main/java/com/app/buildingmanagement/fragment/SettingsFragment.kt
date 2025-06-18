@@ -1,14 +1,10 @@
 package com.app.buildingmanagement.fragment
 
-import android.Manifest
-import android.app.NotificationChannel
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -18,9 +14,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +24,7 @@ import com.app.buildingmanagement.adapter.SimplePaymentAdapter
 import com.app.buildingmanagement.databinding.FragmentSettingsBinding
 import com.app.buildingmanagement.model.SimplePayment
 import com.app.buildingmanagement.data.SharedDataManager
+import com.app.buildingmanagement.firebase.FCMHelper
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -37,24 +32,15 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import java.text.SimpleDateFormat
 import java.util.*
-import android.app.NotificationManager
 
 class SettingsFragment : Fragment() {
 
     private var binding: FragmentSettingsBinding? = null
     private lateinit var auth: FirebaseAuth
     private var currentRoomNumber: String? = null
-    private var isUpdatingSwitch = false // Flag để tránh infinite loop
 
     companion object {
         private const val TAG = "SettingsFragment"
-    }
-
-    // Permission launcher cho notification
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        handleNotificationPermissionResult(isGranted)
     }
 
     override fun onCreateView(
@@ -74,6 +60,10 @@ class SettingsFragment : Fragment() {
             Log.d(TAG, "Using cached room number: $cachedRoomNumber")
             currentRoomNumber = cachedRoomNumber
             binding?.tvRoomNumber?.text = "Phòng $cachedRoomNumber"
+
+            // CHỈ SETUP NẾU LẦN ĐẦU TIÊN
+            setupInitialNotificationStateIfNeeded()
+
         } else if (phone != null) {
             Log.d(TAG, "No cache, loading from Firebase")
             loadRoomNumberFromFirebase(phone)
@@ -86,12 +76,11 @@ class SettingsFragment : Fragment() {
             showLogoutConfirmation()
         }
 
-        // Cập nhật click listener cho payment history với Bottom Sheet
         binding?.btnPaymentHistory?.setOnClickListener {
             showPaymentHistoryBottomSheet()
         }
 
-        // Setup notification switch
+        // SETUP NOTIFICATION SWITCH
         setupNotificationSwitch()
 
         binding?.btnFeedback?.setOnClickListener {
@@ -109,252 +98,64 @@ class SettingsFragment : Fragment() {
         return binding!!.root
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Cập nhật trạng thái switch khi quay lại fragment
-        updateNotificationSwitchState()
+    /**
+     * HYBRID APPROACH: Chỉ setup initial state nếu chưa có setting
+     * MainActivity sẽ handle các case khác
+     */
+    private fun setupInitialNotificationStateIfNeeded() {
+        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+
+        if (!sharedPref.contains("notifications_enabled")) {
+            // TRƯỜNG HỢP HIẾM KHI MAINACTIVITY CHƯA HANDLE - BACKUP
+            Log.d(TAG, "MainActivity missed first time setup - handling here")
+            sharedPref.edit().putBoolean("notifications_enabled", true).apply()
+            FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
+        } else {
+            // ĐÃ CÓ SETTING - MAINACTIVITY ĐÃ HANDLE RỒI
+            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+            Log.d(TAG, "Setting already exists: notifications_enabled = $notificationsEnabled (handled by MainActivity)")
+        }
     }
 
     private fun setupNotificationSwitch() {
-        // Set initial state
-        updateNotificationSwitchState()
+        // Set initial state từ SharedPreferences
+        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+        binding?.switchNotifications?.isChecked = notificationsEnabled
 
         // Handle layout click
         binding?.layoutNotifications?.setOnClickListener {
-            if (!isUpdatingSwitch) {
-                val currentState = binding?.switchNotifications?.isChecked ?: false
-                handleNotificationToggle(!currentState)
-            }
+            binding?.switchNotifications?.isChecked = !(binding?.switchNotifications?.isChecked ?: false)
         }
 
-        // Handle switch toggle
+        // Handle switch toggle - XỬ LÝ FCM TOPICS
         binding?.switchNotifications?.setOnCheckedChangeListener { _, isChecked ->
-            val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            with(sharedPref.edit()) {
-                putBoolean("notifications_enabled", isChecked)
-                apply()
-            }
+            // Lưu preference
+            sharedPref.edit().putBoolean("notifications_enabled", isChecked).apply()
 
-            // CẬP NHẬT NOTIFICATION CHANNEL KHI USER THAY ĐỔI SETTING
-            updateNotificationChannel(isChecked)
+            // XỬ LÝ FCM TOPIC SUBSCRIPTION
+            handleNotificationSubscription(isChecked)
 
             val message = if (isChecked) "Đã bật thông báo" else "Đã tắt thông báo"
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
-
     }
 
-    private fun updateNotificationChannel(enabled: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channelId = "fcm_default_channel"
-
-            val importance = if (enabled) {
-                NotificationManager.IMPORTANCE_DEFAULT
-            } else {
-                NotificationManager.IMPORTANCE_NONE
-            }
-
-            val channel = NotificationChannel(
-                channelId,
-                "Building Management Notifications",
-                importance
-            ).apply {
-                description = "Thông báo từ ban quản lý tòa nhà"
-                enableLights(true)
-                enableVibration(true)
-            }
-
-            notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel updated from Settings - enabled: $enabled")
-        }
-    }
-
-    private fun updateNotificationSwitchState() {
-        isUpdatingSwitch = true
-
-        val hasSystemPermission = hasNotificationPermission()
-        val userPreference = getUserNotificationPreference()
-
-        // Switch sẽ ON khi cả 2 điều kiện đều thỏa mãn:
-        // 1. Có permission hệ thống
-        // 2. User muốn bật (hoặc chưa tắt explicit)
-        val shouldBeEnabled = hasSystemPermission && userPreference
-
-        binding?.switchNotifications?.isChecked = shouldBeEnabled
-
-        // Cập nhật text mô tả
-        updateNotificationDescription(hasSystemPermission, userPreference)
-
-        isUpdatingSwitch = false
-
-        Log.d(TAG, "Switch state updated - System: $hasSystemPermission, User: $userPreference, Final: $shouldBeEnabled")
-    }
-
-    private fun updateNotificationDescription(hasSystemPermission: Boolean, userPreference: Boolean) {
-        // Bạn có thể thêm TextView mô tả dưới switch nếu muốn
-        // Hoặc update subtitle của layout notification
-    }
-
-    private fun handleNotificationToggle(wantToEnable: Boolean) {
-        Log.d(TAG, "User wants to ${if (wantToEnable) "enable" else "disable"} notifications")
-
-        if (wantToEnable) {
-            // User muốn bật thông báo
-            if (hasNotificationPermission()) {
-                // Đã có permission, chỉ cần cập nhật preference
-                setUserNotificationPreference(true)
-                showToast("Đã bật thông báo")
-                updateNotificationSwitchState()
-            } else {
-                // Chưa có permission, cần yêu cầu
-                requestNotificationPermission()
-            }
-        } else {
-            // User muốn tắt thông báo
-            setUserNotificationPreference(false)
-            showToast("Đã tắt thông báo")
-            updateNotificationSwitchState()
-        }
-    }
-
-    private fun requestNotificationPermission() {
-        when {
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU -> {
-                // Android < 13 không cần runtime permission
-                setUserNotificationPreference(true)
-                showToast("Đã bật thông báo")
-                updateNotificationSwitchState()
-            }
-
-            hasNotificationPermission() -> {
-                // Đã có permission
-                setUserNotificationPreference(true)
-                showToast("Đã bật thông báo")
-                updateNotificationSwitchState()
-            }
-
-            shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                // Đã từ chối trước đó, hiển thị dialog giải thích
-                showNotificationPermissionDialog()
-            }
-
-            else -> {
-                // Lần đầu yêu cầu permission
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
-
-    private fun showNotificationPermissionDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Cần quyền thông báo")
-            .setMessage("Để nhận thông báo từ ban quản lý, bạn cần cho phép ứng dụng gửi thông báo.\n\nBạn có muốn mở Cài đặt để bật quyền thông báo không?")
-            .setPositiveButton("Mở Cài đặt") { _, _ ->
-                openNotificationSettings()
-            }
-            .setNegativeButton("Không") { _, _ ->
-                // Reset switch về trạng thái OFF
-                setUserNotificationPreference(false)
-                updateNotificationSwitchState()
-                showToast("Thông báo đã được tắt")
-            }
-            .show()
-    }
-
-    private fun handleNotificationPermissionResult(isGranted: Boolean) {
-        if (isGranted) {
-            Log.d(TAG, "Notification permission granted")
-            setUserNotificationPreference(true)
-            showToast("Đã bật thông báo")
-        } else {
-            Log.d(TAG, "Notification permission denied")
-            setUserNotificationPreference(false)
-            showToast("Quyền thông báo bị từ chối. Bạn có thể bật lại trong Cài đặt.")
-        }
-        updateNotificationSwitchState()
-    }
-
-    private fun openNotificationSettings() {
-        try {
-            val intent = Intent().apply {
-                when {
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
-                        action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
-                        putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
-                    }
-                    else -> {
-                        action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                        data = Uri.fromParts("package", requireContext().packageName, null)
-                    }
-                }
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error opening notification settings", e)
-            showToast("Không thể mở cài đặt thông báo")
-        }
-    }
-
-    // Helper methods
-    private fun hasNotificationPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            // Android < 13 luôn có permission
-            true
-        }
-    }
-
-    private fun getUserNotificationPreference(): Boolean {
-        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        return sharedPref.getBoolean("notifications_enabled", true) // Default là true
-    }
-
-    private fun setUserNotificationPreference(enabled: Boolean) {
-        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        sharedPref.edit().putBoolean("notifications_enabled", enabled).apply()
-        Log.d(TAG, "User notification preference set to: $enabled")
-
-        // THÊM: Disable/Enable notification channel để ảnh hưởng cả khi app background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channelId = "fcm_default_channel"
-
-            if (enabled) {
-                // Enable channel
-                val channel = notificationManager.getNotificationChannel(channelId)
-                if (channel != null) {
-                    channel.importance = NotificationManager.IMPORTANCE_DEFAULT
-                    notificationManager.createNotificationChannel(channel)
-                    Log.d(TAG, "Notification channel enabled")
-                }
-            } else {
-                // Disable channel
-                val channel = notificationManager.getNotificationChannel(channelId)
-                if (channel != null) {
-                    channel.importance = NotificationManager.IMPORTANCE_NONE
-                    notificationManager.createNotificationChannel(channel)
-                    Log.d(TAG, "Notification channel disabled")
-                }
-            }
-        }
-
+    /**
+     * XỬ LÝ SUBSCRIBE/UNSUBSCRIBE FCM TOPICS
+     */
+    private fun handleNotificationSubscription(enabled: Boolean) {
         if (enabled) {
-            Log.d(TAG, "Notifications enabled - FCM will show notifications")
+            // BẬT NOTIFICATION: Subscribe lại các topics
+            Log.d(TAG, "Enabling notifications - subscribing to FCM topics...")
+            FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
         } else {
-            Log.d(TAG, "Notifications disabled - FCM will ignore notifications")
+            // TẮT NOTIFICATION: Unsubscribe khỏi tất cả topics
+            Log.d(TAG, "Disabling notifications - unsubscribing from FCM topics...")
+            FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
         }
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-    }
-
-    // Existing methods remain the same...
     private fun loadRoomNumberFromFirebase(phone: String) {
         val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
 
@@ -373,13 +174,15 @@ class SettingsFragment : Fragment() {
                 }
 
                 if (foundRoom != null && foundRoomSnapshot != null) {
-                    // Cập nhật cache
                     SharedDataManager.setCachedData(foundRoomSnapshot, foundRoom, phone)
                     Log.d(TAG, "Updated cache with room: $foundRoom")
                 }
 
                 currentRoomNumber = foundRoom
                 binding?.tvRoomNumber?.text = foundRoom?.let { "Phòng $it" } ?: "Không xác định phòng"
+
+                // CHỈ SETUP NẾU LẦN ĐẦU TIÊN
+                setupInitialNotificationStateIfNeeded()
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -396,8 +199,7 @@ class SettingsFragment : Fragment() {
             .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
             .setPositiveButton("Đăng xuất") { _, _ ->
                 // Hủy đăng ký tất cả các FCM topics trước khi đăng xuất
-                // để người dùng không nhận thông báo sau khi đăng xuất
-                com.app.buildingmanagement.firebase.FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
+                FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
 
                 // Clear cache khi đăng xuất
                 SharedDataManager.clearCache()
@@ -415,6 +217,7 @@ class SettingsFragment : Fragment() {
             .show()
     }
 
+    // CÁC METHOD KHÁC GIỮ NGUYÊN
     private fun showAboutBottomSheet() {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.bottom_sheet_about, null)
@@ -430,7 +233,6 @@ class SettingsFragment : Fragment() {
         bottomSheetDialog.show()
     }
 
-    // Method cho feedback Bottom Sheet
     private fun showFeedbackBottomSheet() {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.bottom_sheet_feedback, null)
@@ -460,11 +262,8 @@ class SettingsFragment : Fragment() {
         bottomSheetDialog.show()
     }
 
-    // Method gửi feedback vào Firebase với timestamp key
     private fun submitFeedback(feedback: String, isAnonymous: Boolean) {
         val user = auth.currentUser
-
-        // Tạo timestamp key theo format: yyyy-MM-dd_HH-mm-ss
         val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
 
         val feedbackData = if (isAnonymous) {
@@ -481,7 +280,6 @@ class SettingsFragment : Fragment() {
             )
         }
 
-        // Sử dụng timestamp làm key thay vì push()
         val feedbackRef = FirebaseDatabase.getInstance().getReference("service_feedbacks")
         feedbackRef.child(timestamp).setValue(feedbackData)
             .addOnSuccessListener {
@@ -497,9 +295,7 @@ class SettingsFragment : Fragment() {
             }
     }
 
-    // Method mới cho Payment History Bottom Sheet
     private fun showPaymentHistoryBottomSheet() {
-        // Kiểm tra cache trước khi mở payment history
         if (currentRoomNumber == null) {
             val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
             if (cachedRoomNumber != null) {
@@ -558,7 +354,6 @@ class SettingsFragment : Fragment() {
                         }
                     }
 
-                    // Chạy trên UI thread để đảm bảo cập nhật UI
                     requireActivity().runOnUiThread {
                         progressBar.visibility = View.GONE
 
@@ -569,7 +364,6 @@ class SettingsFragment : Fragment() {
                         } else {
                             layoutEmpty.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
-                            // Sắp xếp theo thời gian mới nhất
                             paymentList.sortByDescending { it.timestamp }
                             adapter.notifyDataSetChanged()
                             Log.d(TAG, "Loaded ${paymentList.size} payment records")

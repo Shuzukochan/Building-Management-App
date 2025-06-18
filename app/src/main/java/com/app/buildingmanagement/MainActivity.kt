@@ -1,10 +1,6 @@
 package com.app.buildingmanagement
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -16,11 +12,14 @@ import com.app.buildingmanagement.databinding.ActivityMainBinding
 import com.app.buildingmanagement.firebase.FCMHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.ktx.Firebase
 
 class MainActivity : AppCompatActivity() {
 
-    // Null safety improvements
     private var binding: ActivityMainBinding? = null
     private var auth: FirebaseAuth? = null
     private var navController: NavController? = null
@@ -39,32 +38,23 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize auth first
         auth = Firebase.auth
 
-        // Critical: Check authentication before setting up UI
         if (!checkAuthenticationState()) {
-            return // Exit early if not authenticated
+            return
         }
 
-        // Setup UI only if authenticated
         setupUI()
         setupNavigation()
         setupBottomNavigation()
 
-        // Initialize FCM (non-blocking)
+        // Initialize FCM
         initializeFCMToken()
-
-        updateNotificationChannelBasedOnSettings()
 
         // Handle notification intent if any
         handleNotificationIntent()
     }
 
-    /**
-     * Check if user is authenticated
-     * @return true if authenticated, false otherwise
-     */
     private fun checkAuthenticationState(): Boolean {
         val currentUser = auth?.currentUser
         if (currentUser == null) {
@@ -80,8 +70,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupUI() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding?.root)
-
-        // Setup status bar
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
     }
 
@@ -132,15 +120,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun initializeFCMToken() {
         try {
-            // Subscribe to all residents topic immediately
-            FCMHelper.subscribeToTopic("all_residents")
-            Log.d(TAG, "Subscribed to all_residents topic")
-
-            // Generate and save FCM token
             FCMHelper.getToken { token ->
                 if (token != null) {
-                    Log.d(TAG, "FCM Token generated: ${token.take(20)}...") // Log only first 20 chars for security
+                    Log.d(TAG, "FCM Token generated: ${token.take(20)}...")
                     saveTokenToPrefs(token)
+
+                    // SETUP LISTENER ĐỂ ĐỢI CÓ ROOM NUMBER
+                    setupNotificationSubscriptionWhenReady()
+
                 } else {
                     Log.w(TAG, "Failed to generate FCM token")
                 }
@@ -150,12 +137,100 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupNotificationSubscriptionWhenReady() {
+        // Kiểm tra cache trước
+        val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
+        if (cachedRoomNumber != null) {
+            Log.d(TAG, "Room number available from cache: $cachedRoomNumber")
+            ensureCorrectSubscriptionState()
+            return
+        }
+
+        // Nếu chưa có cache, đợi HomeFragment load xong
+        val currentUser = auth?.currentUser
+        val phone = currentUser?.phoneNumber
+
+        if (phone != null) {
+            Log.d(TAG, "Waiting for room data to be loaded...")
+            val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
+
+            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    for (roomSnapshot in snapshot.children) {
+                        val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInRoom == phone) {
+                            val roomNumber = roomSnapshot.key
+                            if (roomNumber != null) {
+                                Log.d(TAG, "Room number found: $roomNumber")
+                                ensureCorrectSubscriptionState()
+                            }
+                            break
+                        }
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e(TAG, "Error loading room data for subscription setup", error.toException())
+                }
+            })
+        }
+    }
+
+    private fun ensureCorrectSubscriptionState() {
+        val sharedPref = getSharedPreferences("app_settings", MODE_PRIVATE)
+        val roomNumber = getCurrentUserRoomNumber()
+
+        if (roomNumber == null) {
+            Log.w(TAG, "Room number still not available for subscription setup")
+            return
+        }
+
+        // Kiểm tra xem đã có setting chưa
+        if (!sharedPref.contains("notifications_enabled")) {
+            // LẦN ĐẦU TIÊN - SET DEFAULT VÀ SUBSCRIBE
+            Log.d(TAG, "First time app launch - enabling notifications by default and subscribing to room: $roomNumber")
+            sharedPref.edit().putBoolean("notifications_enabled", true).apply()
+            FCMHelper.subscribeToUserBuildingTopics(roomNumber)
+
+        } else {
+            // ĐÃ CÓ SETTING - APPLY THEO SETTING
+            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+
+            if (notificationsEnabled) {
+                Log.d(TAG, "Ensuring topics are subscribed (user preference: enabled) for room: $roomNumber")
+                FCMHelper.subscribeToUserBuildingTopics(roomNumber)
+            } else {
+                Log.d(TAG, "Ensuring topics are unsubscribed (user preference: disabled) for room: $roomNumber")
+                FCMHelper.unsubscribeFromBuildingTopics(roomNumber)
+            }
+        }
+    }
+
+
+    /**
+     * Kiểm tra notification setting và subscribe topics tương ứng
+     */
+    private fun checkNotificationSettingsAndSubscribe() {
+        // Lấy room number từ cache hoặc user data
+        val roomNumber = getCurrentUserRoomNumber()
+
+        // Check setting và subscribe accordingly
+        FCMHelper.checkAndSubscribeBasedOnSettings(this, roomNumber)
+    }
+
+    /**
+     * Helper method để lấy room number
+     */
+    private fun getCurrentUserRoomNumber(): String? {
+        return com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
+    }
+
     private fun saveTokenToPrefs(token: String) {
         try {
             val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
             val success = sharedPref.edit()
                 .putString(FCM_TOKEN_KEY, token)
-                .commit() // Use commit() instead of apply() to ensure it's saved immediately
+                .commit()
 
             if (success) {
                 Log.d(TAG, "FCM token saved to SharedPreferences")
@@ -164,35 +239,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving FCM token to preferences", e)
-        }
-    }
-
-    private fun updateNotificationChannelBasedOnSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val sharedPref = getSharedPreferences("app_settings", MODE_PRIVATE)
-            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channelId = "fcm_default_channel"
-
-            val importance = if (notificationsEnabled) {
-                NotificationManager.IMPORTANCE_DEFAULT
-            } else {
-                NotificationManager.IMPORTANCE_NONE
-            }
-
-            val channel = NotificationChannel(
-                channelId,
-                "Building Management Notifications",
-                importance
-            ).apply {
-                description = "Thông báo từ ban quản lý tòa nhà"
-                enableLights(true)
-                enableVibration(true)
-            }
-
-            notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel refreshed on app start - enabled: $notificationsEnabled")
         }
     }
 
@@ -237,8 +283,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun navigateToMaintenanceScreen() {
         try {
-            // TODO: Implement navigation to maintenance screen
-            // Example: navController?.navigate(R.id.maintenanceFragment)
             Log.d(TAG, "Navigate to maintenance screen - TODO: Implement")
         } catch (e: Exception) {
             Log.e(TAG, "Error navigating to maintenance screen", e)
@@ -247,8 +291,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun navigateToPaymentScreen() {
         try {
-            // TODO: Implement navigation to payment screen
-            // Example: navController?.navigate(R.id.paymentFragment)
             Log.d(TAG, "Navigate to payment screen - TODO: Implement")
         } catch (e: Exception) {
             Log.e(TAG, "Error navigating to payment screen", e)
@@ -257,8 +299,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun navigateToAnnouncementScreen() {
         try {
-            // TODO: Implement navigation to announcement screen
-            // Example: navController?.navigate(R.id.announcementFragment)
             Log.d(TAG, "Navigate to announcement screen - TODO: Implement")
         } catch (e: Exception) {
             Log.e(TAG, "Error navigating to announcement screen", e)
@@ -267,7 +307,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Re-check authentication when activity starts
         if (!checkAuthenticationState()) {
             return
         }
@@ -275,7 +314,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Additional check on resume (in case user was signed out while app was in background)
         if (auth?.currentUser == null) {
             Log.w(TAG, "User signed out while app was in background")
             redirectToSignIn()
@@ -285,7 +323,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try {
-            // Clean up resources
             binding = null
             navController = null
             auth = null
@@ -295,31 +332,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Method to be called when user logs out
-     * Can be called from SettingsFragment or other components
-     */
     fun onUserLogout() {
         try {
             val currentUser = auth?.currentUser
             if (currentUser != null) {
                 val phone = currentUser.phoneNumber
                 if (phone != null) {
-                    Log.d(TAG, "Cleaning up FCM data for user: ${phone.take(10)}...") // Log partial phone for privacy
+                    Log.d(TAG, "Cleaning up FCM data for user: ${phone.take(10)}...")
                     cleanupFCMOnLogout(phone)
                 }
             }
 
-            // Sign out from Firebase
             auth?.signOut()
             Log.d(TAG, "User signed out successfully")
-
-            // Redirect to sign in
             redirectToSignIn()
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during logout process", e)
-            // Still try to redirect even if cleanup fails
             redirectToSignIn()
         }
     }
@@ -327,7 +356,7 @@ class MainActivity : AppCompatActivity() {
     private fun cleanupFCMOnLogout(phone: String) {
         try {
             // Unsubscribe from FCM topics
-            FCMHelper.unsubscribeFromBuildingTopics(null) // Will unsubscribe from common topics
+            FCMHelper.unsubscribeFromBuildingTopics(null)
 
             // Clear FCM token from SharedPreferences
             val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
@@ -337,18 +366,11 @@ class MainActivity : AppCompatActivity() {
 
             Log.d(TAG, "FCM cleanup completed for logout")
 
-            // TODO: Remove FCM token from Firebase Database if needed
-            // This would require knowing the room number
-
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up FCM data", e)
         }
     }
 
-    /**
-     * Get the current FCM token from SharedPreferences
-     * @return FCM token or null if not found
-     */
     fun getCurrentFCMToken(): String? {
         return try {
             val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
@@ -359,10 +381,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Refresh FCM token if needed
-     * Can be called from fragments
-     */
     fun refreshFCMToken() {
         try {
             Log.d(TAG, "Refreshing FCM token...")

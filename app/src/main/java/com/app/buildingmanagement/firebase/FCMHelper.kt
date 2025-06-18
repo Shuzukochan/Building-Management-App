@@ -1,10 +1,9 @@
 package com.app.buildingmanagement.firebase
 
-
+import android.content.Context
 import android.util.Log
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.messaging.FirebaseMessaging
-
 
 /**
  * Lớp trợ giúp để quản lý Firebase Cloud Messaging (FCM)
@@ -61,32 +60,29 @@ class FCMHelper {
         }
 
         /**
-         * Đăng ký chủ đề theo tòa nhà/căn hộ của người dùng
-         * Thường gọi sau khi đăng nhập thành công
+         * Subscribe lại tất cả topics cho user (khi bật notification)
          */
-        fun subscribeToUserTopics(userId: String, buildingId: String, apartmentId: String) {
-            // Đăng ký thông báo dành riêng cho người dùng
-            subscribeToTopic("user_$userId")
+        fun subscribeToUserBuildingTopics(roomNumber: String?) {
+            // Subscribe topic chung
+            subscribeToTopic("all_residents")
 
-            // Đăng ký thông báo cho tòa nhà
-            subscribeToTopic("building_$buildingId")
+            if (roomNumber != null) {
+                // Subscribe topic cho phòng cụ thể
+                subscribeToTopic("room_$roomNumber")
 
-            // Đăng ký thông báo cho căn hộ
-            subscribeToTopic("apartment_$apartmentId")
-        }
+                // Subscribe topic cho tầng
+                val floor = roomNumber.substring(0, 1)
+                subscribeToTopic("floor_$floor")
 
-        /**
-         * Hủy đăng ký tất cả các chủ đề khi người dùng đăng xuất
-         */
-        fun unsubscribeFromAllTopics(userId: String, buildingId: String, apartmentId: String) {
-            unsubscribeFromTopic("user_$userId")
-            unsubscribeFromTopic("building_$buildingId")
-            unsubscribeFromTopic("apartment_$apartmentId")
+                Log.d(TAG, "Subscribed to all topics for room: $roomNumber")
+            } else {
+                Log.d(TAG, "Subscribed to general topics only (no room number)")
+            }
         }
 
         /**
          * Hủy đăng ký tất cả các topic được sử dụng trong ứng dụng Building Management
-         * Gọi phương thức này khi người dùng đăng xuất
+         * Gọi phương thức này khi người dùng đăng xuất hoặc tắt notification
          */
         fun unsubscribeFromBuildingTopics(roomNumber: String?) {
             // Hủy đăng ký topic "all_residents"
@@ -103,6 +99,22 @@ class FCMHelper {
                 Log.d(TAG, "Hủy đăng ký tất cả các topic: all_residents, room_$roomNumber, floor_$floor")
             } else {
                 Log.d(TAG, "Hủy đăng ký topic all_residents (không có số phòng)")
+            }
+        }
+
+        /**
+         * Kiểm tra setting và subscribe/unsubscribe topics theo đó
+         */
+        fun checkAndSubscribeBasedOnSettings(context: Context, roomNumber: String?) {
+            val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
+
+            if (notificationsEnabled) {
+                Log.d(TAG, "Notifications enabled, subscribing to topics...")
+                subscribeToUserBuildingTopics(roomNumber)
+            } else {
+                Log.d(TAG, "Notifications disabled, unsubscribing from topics...")
+                unsubscribeFromBuildingTopics(roomNumber)
             }
         }
     }

@@ -28,44 +28,25 @@ class FCMService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, "From: ${remoteMessage.from}")
 
-        // KIỂM TRA SETTING NOTIFICATION CỦA USER TRƯỚC
-        if (!isNotificationEnabled()) {
-            Log.d(TAG, "Notifications disabled by user, skipping notification display")
-            return
-        }
-
-        // Ưu tiên xử lý notification payload trước
+        // Xử lý notification payload
         remoteMessage.notification?.let { notification ->
             val title = notification.title ?: ""
             val body = notification.body ?: ""
 
             Log.d(TAG, "Received notification: '$title' - '$body'")
 
-            // CHỈ HIỂN THỊ NẾU CÓ NỘI DUNG TỪ SERVER
+            // Hiển thị notification (FCM topics đã handle việc filter)
             if (title.isNotEmpty() || body.isNotEmpty()) {
                 sendNotification(title, body)
-            } else {
-                Log.d(TAG, "Empty notification content, not displaying")
             }
-            return // Return để không xử lý data payload nữa
+            return
         }
 
-        // Chỉ xử lý data payload nếu không có notification payload
+        // Xử lý data payload nếu không có notification payload
         if (remoteMessage.data.isNotEmpty()) {
             Log.d(TAG, "Message data payload: ${remoteMessage.data}")
             handleDataPayload(remoteMessage.data)
         }
-    }
-
-    /**
-     * Kiểm tra xem user có bật notification hay không
-     */
-    private fun isNotificationEnabled(): Boolean {
-        val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val userPreference = sharedPref.getBoolean("notifications_enabled", true) // Default là true
-
-        Log.d(TAG, "Notification user preference: $userPreference")
-        return userPreference
     }
 
     /**
@@ -75,13 +56,8 @@ class FCMService : FirebaseMessagingService() {
         val title = data["title"] ?: ""
         val body = data["body"] ?: ""
 
-        Log.d(TAG, "Data payload - title: '$title', body: '$body'")
-
-        // Chỉ hiển thị nếu có nội dung
         if (title.isNotEmpty() || body.isNotEmpty()) {
             sendNotification(title, body)
-        } else {
-            Log.d(TAG, "No meaningful content in data payload")
         }
     }
 
@@ -128,16 +104,9 @@ class FCMService : FirebaseMessagingService() {
     }
 
     /**
-     * Create and show notification - CHỈ HIỂN THỊ KHI USER CHO PHÉP
+     * Create and show notification - ĐƠN GIẢN HÓA
      */
     private fun sendNotification(title: String, messageBody: String) {
-        // Double check notification setting
-        if (!isNotificationEnabled()) {
-            Log.d(TAG, "Notification disabled by user during sendNotification, not showing")
-            return
-        }
-
-        // Không hiển thị nếu không có nội dung
         if (title.isEmpty() && messageBody.isEmpty()) {
             Log.d(TAG, "Empty notification content, not showing")
             return
@@ -155,91 +124,28 @@ class FCMService : FirebaseMessagingService() {
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.icon_hcmute_notification)
+            .setContentTitle(title)
+            .setContentText(messageBody)
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setDefaults(NotificationCompat.DEFAULT_ALL) // THÊM DEFAULT SETTINGS
-
-        // Chỉ set title nếu có
-        if (title.isNotEmpty()) {
-            notificationBuilder.setContentTitle(title)
-        } else {
-            notificationBuilder.setContentTitle("Test Notification") // FALLBACK TITLE
-        }
-
-        // Chỉ set body nếu có
-        if (messageBody.isNotEmpty()) {
-            notificationBuilder.setContentText(messageBody)
-        } else {
-            notificationBuilder.setContentText("Test Body") // FALLBACK BODY
-        }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Tạo notification channel với importance phù hợp
+        // Tạo notification channel đơn giản
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            createOrUpdateNotificationChannel(notificationManager, channelId)
-
-            // KIỂM TRA CHANNEL SAU KHI TẠO
-            val channel = notificationManager.getNotificationChannel(channelId)
-            if (channel == null) {
-                Log.e(TAG, "Channel is null after creation!")
-                return
-            }
-
-            if (channel.importance == NotificationManager.IMPORTANCE_NONE) {
-                Log.w(TAG, "Channel importance is NONE, notification might not show")
-            }
-
-            Log.d(TAG, "Channel status - importance: ${channel.importance}, blocked: ${channel.importance == NotificationManager.IMPORTANCE_NONE}")
-        }
-
-        // Sử dụng timestamp làm notification ID để tránh ghi đè
-        val notificationId = System.currentTimeMillis().toInt()
-
-        try {
-            Log.d(TAG, "Attempting to show notification (ID: $notificationId): '$title' - '$messageBody'")
-            notificationManager.notify(notificationId, notificationBuilder.build())
-            Log.d(TAG, "Notification.notify() called successfully")
-
-            // VERIFY NOTIFICATION HIỂN THỊ
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val activeNotifications = notificationManager.activeNotifications
-                Log.d(TAG, "Active notifications count: ${activeNotifications.size}")
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing notification", e)
-        }
-    }
-
-    /**
-     * Tạo hoặc cập nhật notification channel dựa trên user setting
-     */
-    private fun createOrUpdateNotificationChannel(notificationManager: NotificationManager, channelId: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Kiểm tra setting để quyết định importance
-            val userEnabled = isNotificationEnabled()
-            val importance = if (userEnabled) {
-                NotificationManager.IMPORTANCE_DEFAULT
-            } else {
-                NotificationManager.IMPORTANCE_NONE
-            }
-
             val channel = NotificationChannel(
                 channelId,
                 "Building Management Notifications",
-                importance
-            ).apply {
-                description = "Thông báo từ ban quản lý tòa nhà"
-                enableLights(true)
-                enableVibration(true)
-            }
-
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel updated - importance: $importance (user enabled: $userEnabled)")
         }
+
+        val notificationId = System.currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notificationBuilder.build())
+        Log.d(TAG, "Notification shown: '$title' - '$messageBody'")
     }
 
     companion object {
