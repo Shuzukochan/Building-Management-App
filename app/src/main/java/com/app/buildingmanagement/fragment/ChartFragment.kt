@@ -143,16 +143,29 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                // Duyệt qua tất cả các phòng
                 for (roomSnapshot in snapshot.children) {
-                    val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
-                    if (phoneInRoom == phone) {
-                        val roomNumber = roomSnapshot.key
-                        if (roomNumber != null) {
-                            // Cập nhật cache
-                            SharedDataManager.setCachedData(roomSnapshot, roomNumber, phone)
+                    val tenantsSnapshot = roomSnapshot.child("tenants")
+                    var phoneFound = false
+
+                    // Duyệt qua tất cả các thành viên trong phòng
+                    for (tenantSnapshot in tenantsSnapshot.children) {
+                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInTenant == phone) {
+                            phoneFound = true
+                            val roomNumber = roomSnapshot.key
+                            if (roomNumber != null) {
+                                // Cập nhật cache
+                                SharedDataManager.setCachedData(roomSnapshot, roomNumber, phone)
+                                Log.d(TAG, "Found matching phone in room: $roomNumber, tenant: ${tenantSnapshot.key}")
+                            }
+                            loadChartDataFromSnapshot(roomSnapshot)
+                            break
                         }
-                        loadChartDataFromSnapshot(roomSnapshot)
-                        break
+                    }
+
+                    if (phoneFound) {
+                        break // Thoát khỏi vòng lặp rooms khi đã tìm thấy
                     }
                 }
             }
@@ -163,6 +176,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         })
     }
 
+    // Các method khác giữ nguyên...
     private fun setupSpinners() {
         val adapter = ArrayAdapter(
             requireContext(),
@@ -179,7 +193,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 selectedElectricMode = adapter.getItem(position) ?: "Tháng"
                 setDefaultRange(true)
-                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
+                loadChartDataWithCache()
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
@@ -188,7 +202,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 selectedWaterMode = adapter.getItem(position) ?: "Tháng"
                 setDefaultRange(false)
-                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
+                loadChartDataWithCache()
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
@@ -240,7 +254,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 calendar.set(Calendar.MONTH, pickedMonth)
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 editText.setText(displayMonthFormatter.format(calendar.time))
-                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
+                loadChartDataWithCache()
             }.show()
         } catch (e: Exception) {
             DatePickerDialog(
@@ -248,7 +262,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 { _, year, month, _ ->
                     calendar.set(year, month, 1)
                     editText.setText(displayMonthFormatter.format(calendar.time))
-                    loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
+                    loadChartDataWithCache()
                 },
                 selectedYear,
                 selectedMonth,
@@ -271,7 +285,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             { _, year, month, day ->
                 calendar.set(year, month, day)
                 editText.setText(displayDateFormatter.format(calendar.time))
-                loadChartDataWithCache() // Sử dụng cache thay vì loadChartData()
+                loadChartDataWithCache()
             },
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),

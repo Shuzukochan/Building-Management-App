@@ -74,6 +74,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         // Đăng ký listener trước khi tìm room
         SharedDataManager.addListener(this)
 
+        // Hiển thị loading state trước
+        showLoadingState()
+
         findUserRoomWithCache()
 
         binding.btnPayNow.setOnClickListener {
@@ -83,6 +86,21 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         }
     }
 
+    private fun showLoadingState() {
+        Log.d(TAG, "Showing loading state for PayFragment")
+        
+        // CHỈ SET ALPHA, KHÔNG THAY ĐỔI TEXT VÀ ENABLED
+        // Vì updateUIBasedOnMonth() sẽ handle text và enabled state
+        binding.btnPayNow.alpha = 0.6f
+    }
+
+    private fun hideLoadingState() {
+        Log.d(TAG, "Hiding loading state for PayFragment")
+        
+        // Restore alpha về normal - ĐẢNG BẢO set sau khi background được update
+        binding.btnPayNow.alpha = 1.0f
+    }
+
     override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
         if (_binding == null || !isAdded) return
 
@@ -90,6 +108,8 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         userRoomNumber = roomNumber
         // Refresh payment status khi có data mới
         refreshPaymentStatus()
+        // Gọi hideLoadingState sau khi refresh
+        hideLoadingState()
     }
 
     override fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) {
@@ -103,10 +123,10 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         setupPaymentStatusListener()
         checkPaymentStatus()
         loadUsageData()
+        
+        // Hide loading state SAU KHI updateUIBasedOnMonth được gọi
+        // (sẽ được gọi trong checkPaymentStatus -> updateUIBasedOnMonth)
     }
-
-
-
 
     override fun onResume() {
         super.onResume()
@@ -160,6 +180,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             setupPaymentStatusListener()
             checkPaymentStatus()
             loadUsageData()
+            
+            // QUAN TRỌNG: Hide loading state sau khi load xong từ cache
+            hideLoadingState()
             return
         }
 
@@ -178,26 +201,49 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 // Kiểm tra fragment vẫn còn active
                 if (_binding == null || !isAdded) return
 
-                if (snapshot.exists()) {
-                    val roomSnapshot = snapshot.children.first()
-                    userRoomNumber = roomSnapshot.key
+                var roomFound = false
 
-                    Log.d(TAG, "Found user in room: $userRoomNumber")
+                // Duyệt qua tất cả các phòng
+                for (roomSnapshot in snapshot.children) {
+                    val tenantsSnapshot = roomSnapshot.child("tenants")
 
-                    // Cập nhật cache
-                    if (userRoomNumber != null) {
-                        SharedDataManager.setCachedData(roomSnapshot, userRoomNumber!!, phone)
+                    // Duyệt qua tất cả các thành viên trong phòng
+                    for (tenantSnapshot in tenantsSnapshot.children) {
+                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInTenant == phone) {
+                            roomFound = true
+                            userRoomNumber = roomSnapshot.key
+
+                            Log.d(TAG, "Found user in room: $userRoomNumber, tenant: ${tenantSnapshot.key}")
+
+                            // Cập nhật cache
+                            if (userRoomNumber != null) {
+                                SharedDataManager.setCachedData(roomSnapshot, userRoomNumber!!, phone)
+                            }
+
+                            // Gọi spinner sau khi đã xác định phòng
+                            loadAvailableMonthsFromSnapshot(roomSnapshot)
+                            setupPaymentStatusListener()
+
+                            // Load initial data
+                            checkPaymentStatus()
+                            loadUsageData()
+                            
+                            // QUAN TRỌNG: Hide loading state sau khi load xong từ Firebase
+                            hideLoadingState()
+
+                            break // Thoát khỏi vòng lặp tenants
+                        }
                     }
 
-                    // Gọi spinner sau khi đã xác định phòng
-                    loadAvailableMonthsFromSnapshot(roomSnapshot)
-                    setupPaymentStatusListener()
+                    if (roomFound) {
+                        break // Thoát khỏi vòng lặp rooms
+                    }
+                }
 
-                    // Load initial data
-                    checkPaymentStatus()
-                    loadUsageData()
-                } else {
+                if (!roomFound) {
                     Log.e(TAG, "User not found in any room")
+                    hideLoadingState()
                     Toast.makeText(requireContext(), "Không tìm thấy phòng của bạn", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -205,12 +251,13 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             override fun onCancelled(error: DatabaseError) {
                 if (_binding != null && isAdded) {
                     Log.e(TAG, "Error finding user room: ${error.message}")
+                    hideLoadingState()
                 }
             }
         }
 
-        roomsRef.orderByChild("phone").equalTo(phone)
-            .addListenerForSingleValueEvent(listener)
+        // Thay đổi query - không còn sử dụng orderByChild("phone")
+        roomsRef.addListenerForSingleValueEvent(listener)
     }
 
     private fun loadAvailableMonthsFromSnapshot(roomSnapshot: DataSnapshot) {
@@ -805,6 +852,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 )
             }
         }
+        
+        // QUAN TRỌNG: Đảm bảo alpha = 1.0f sau khi update button state
+        hideLoadingState()
     }
 
     private fun updatePaymentNotice(isPaid: Boolean, isCurrentMonth: Boolean, isPreviousMonth: Boolean) {

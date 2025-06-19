@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#F7F7FB"
     android:clipToPadding="false"
-    android:padding="16dp"
+    android:padding="@dimen/settings_main_padding"
     tools:context=".fragment.SettingsFragment">
 
     <LinearLayout
@@ -19,18 +19,17 @@
             android:id="@+id/tv_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="@dimen/settings_header_margin_bottom"
             android:gravity="center"
             android:text="Cài đặt"
             android:textColor="@color/black"
-            android:textSize="28sp"
+            android:textSize="@dimen/settings_title_text_size"
             android:textStyle="bold" />
-
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="@dimen/settings_card_margin_bottom"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -40,7 +39,50 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="@dimen/settings_card_padding">
+
+                <!-- User Name Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="@dimen/settings_user_info_margin_bottom">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/baseline_person_24"
+                        android:background="@drawable/circle_background"
+                        android:backgroundTint="#FFF3E0"
+                        android:padding="8dp"
+                        app:tint="#F57C00" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tên người dùng"
+                            android:textColor="#666666"
+                            android:textSize="@dimen/settings_label_text_size"
+                            android:layout_marginBottom="2dp" />
+
+                        <TextView
+                            android:id="@+id/tvUserName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Đang tải..."
+                            android:textColor="@color/black"
+                            android:textSize="@dimen/settings_user_name_text_size"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <!-- Room Info Section -->
                 <LinearLayout
@@ -48,7 +90,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginBottom="@dimen/settings_user_info_margin_bottom">
 
                     <ImageView
                         android:layout_width="32dp"
@@ -71,16 +113,16 @@
                             android:layout_height="wrap_content"
                             android:text="Số phòng"
                             android:textColor="#666666"
-                            android:textSize="12sp"
+                            android:textSize="@dimen/settings_label_text_size"
                             android:layout_marginBottom="2dp" />
 
                         <TextView
                             android:id="@+id/tvRoomNumber"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Phòng 1"
+                            android:text="Đang tải..."
                             android:textColor="@color/black"
-                            android:textSize="20sp"
+                            android:textSize="@dimen/settings_room_text_size"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -113,37 +155,36 @@
                             android:layout_height="wrap_content"
                             android:text="Số điện thoại"
                             android:textColor="#666666"
-                            android:textSize="12sp"
+                            android:textSize="@dimen/settings_label_text_size"
                             android:layout_marginBottom="2dp" />
 
                         <TextView
                             android:id="@+id/tv_phoneNumber"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0123 456 789"
+                            android:text="Đang tải..."
                             android:textColor="@color/black"
-                            android:textSize="16sp" />
+                            android:textSize="@dimen/settings_phone_text_size" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-
         <!-- Thanh toán Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
             android:text="Thanh toán"
             android:textColor="#333333"
-            android:textSize="14sp"
+            android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="@dimen/settings_card_margin_bottom"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -157,14 +198,14 @@
                 <LinearLayout
                     android:id="@+id/btn_payment_history"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:background="?android:attr/selectableItemBackground"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/settings_item_padding"
+                    android:paddingEnd="@dimen/settings_item_padding">
 
                     <ImageView
                         android:layout_width="24dp"
@@ -179,7 +220,7 @@
                         android:layout_weight="1"
                         android:text="LỊCH SỬ THANH TOÁN"
                         android:textColor="@color/black"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
 
                     <ImageView
@@ -195,17 +236,17 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
             android:text="Ứng dụng"
             android:textColor="#333333"
-            android:textSize="14sp"
+            android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="@dimen/settings_card_margin_bottom"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -219,14 +260,14 @@
                 <LinearLayout
                     android:id="@+id/layoutNotifications"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:background="?android:attr/selectableItemBackground"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/settings_item_padding"
+                    android:paddingEnd="@dimen/settings_item_padding">
 
                     <ImageView
                         android:layout_width="24dp"
@@ -241,7 +282,7 @@
                         android:layout_weight="1"
                         android:text="CHO PHÉP THÔNG BÁO"
                         android:textColor="@color/black"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
@@ -260,22 +301,21 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-
         <!-- Hỗ trợ Section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
             android:text="Hỗ trợ"
             android:textColor="#333333"
-            android:textSize="14sp"
+            android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="@dimen/settings_card_margin_bottom"
             app:cardBackgroundColor="@android:color/white"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -289,14 +329,14 @@
                 <LinearLayout
                     android:id="@+id/btn_feedback"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:background="?android:attr/selectableItemBackground"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/settings_item_padding"
+                    android:paddingEnd="@dimen/settings_item_padding">
 
                     <ImageView
                         android:layout_width="24dp"
@@ -311,7 +351,7 @@
                         android:layout_weight="1"
                         android:text="GÓP Ý"
                         android:textColor="@color/black"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
 
                     <ImageView
@@ -330,14 +370,14 @@
                 <LinearLayout
                     android:id="@+id/btn_support"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:background="?android:attr/selectableItemBackground"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/settings_item_padding"
+                    android:paddingEnd="@dimen/settings_item_padding">
 
                     <ImageView
                         android:layout_width="24dp"
@@ -352,7 +392,7 @@
                         android:layout_weight="1"
                         android:text="LIÊN HỆ HỖ TRỢ"
                         android:textColor="@color/black"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
 
                     <ImageView
@@ -371,14 +411,14 @@
                 <LinearLayout
                     android:id="@+id/btn_about"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/settings_item_height"
                     android:background="?android:attr/selectableItemBackground"
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/settings_item_padding"
+                    android:paddingEnd="@dimen/settings_item_padding">
 
                     <ImageView
                         android:layout_width="24dp"
@@ -393,7 +433,7 @@
                         android:layout_weight="1"
                         android:text="VỀ ỨNG DỤNG"
                         android:textColor="@color/black"
-                        android:textSize="14sp"
+                        android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
 
                     <ImageView
@@ -409,7 +449,7 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
+            android:layout_marginBottom="@dimen/settings_card_margin_bottom"
             app:cardBackgroundColor="#FFEBEE"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -418,14 +458,14 @@
             <LinearLayout
                 android:id="@+id/btnSignOut"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="@dimen/settings_item_height"
                 android:background="#FF4444"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
+                android:paddingStart="@dimen/settings_item_padding"
+                android:paddingEnd="@dimen/settings_item_padding">
 
                 <TextView
                     android:layout_width="0dp"
@@ -435,7 +475,7 @@
                     android:text="Đăng xuất"
                     app:backgroundTint="#FF4444"
                     android:textColor="#FFFFFF"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/settings_logout_text_size"
                     android:textStyle="bold" />
 
                 <ImageView

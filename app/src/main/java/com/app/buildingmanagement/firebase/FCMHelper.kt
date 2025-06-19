@@ -63,6 +63,8 @@ class FCMHelper {
          * Subscribe lại tất cả topics cho user (khi bật notification)
          */
         fun subscribeToUserBuildingTopics(roomNumber: String?) {
+            Log.d(TAG, "=== STARTING SUBSCRIPTION PROCESS ===")
+            
             // Subscribe topic chung
             subscribeToTopic("all_residents")
 
@@ -75,9 +77,12 @@ class FCMHelper {
                 subscribeToTopic("floor_$floor")
 
                 Log.d(TAG, "Subscribed to all topics for room: $roomNumber")
+                Log.d(TAG, "Topics: all_residents, room_$roomNumber, floor_$floor")
             } else {
                 Log.d(TAG, "Subscribed to general topics only (no room number)")
             }
+            
+            Log.d(TAG, "=== SUBSCRIPTION PROCESS COMPLETED ===")
         }
 
         /**

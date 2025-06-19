@@ -20,17 +20,19 @@ android {
         applicationId = "com.app.buildingmanagement"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val apiKey = requireNotNull(localProps.getProperty("API_KEY")) { "API_KEY missing from local.properties" }
         val clientId = requireNotNull(localProps.getProperty("CLIENT_ID")) { "CLIENT_ID missing from local.properties" }
         val signature = requireNotNull(localProps.getProperty("SIGNATURE")) { "SIGNATURE missing from local.properties" }
+        val debugToken = localProps.getProperty("FIREBASE_APPCHECK_DEBUG_TOKEN", "")
 
         buildConfigField("String", "API_KEY", "\"$apiKey\"")
         buildConfigField("String", "CLIENT_ID", "\"$clientId\"")
         buildConfigField("String", "SIGNATURE", "\"$signature\"")
+        buildConfigField("String", "FIREBASE_APPCHECK_DEBUG_TOKEN", "\"$debugToken\"")
     }
 
 

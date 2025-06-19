@@ -12,22 +12,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp"
+        android:padding="@dimen/home_main_padding"
         android:clipToPadding="false"
         android:clipChildren="false">
 
-        <!-- Header Section - Tăng spacing -->
+        <!-- Header Section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginBottom="28dp">
+            android:layout_marginBottom="@dimen/home_header_margin_bottom">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Tổng quan tiêu thụ"
-                android:textSize="28sp"
+                android:textSize="@dimen/home_title_text_size"
                 android:textStyle="bold"
                 android:textColor="#1A1A1A" />
 
@@ -42,7 +42,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Tháng 06/2025"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/home_subtitle_text_size"
                     android:textColor="#6B7280" />
 
                 <View
@@ -57,7 +57,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Phòng 1"
-                    android:textSize="16sp"
+                    android:textSize="@dimen/home_subtitle_text_size"
                     android:textColor="#6B7280"
                     android:textStyle="bold" />
 
@@ -65,12 +65,12 @@
 
         </LinearLayout>
 
-        <!-- Usage Cards Grid - Cân chỉnh spacing và kích thước -->
+        <!-- Usage Cards Grid -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="36dp"
+            android:layout_marginBottom="@dimen/home_cards_margin_bottom"
             android:baselineAligned="false">
 
             <!-- Electric Usage Card -->
@@ -79,7 +79,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginEnd="10dp"
-                android:minHeight="170dp"
+                android:minHeight="@dimen/home_card_min_height"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="8dp"
                 app:cardBackgroundColor="#FEF3C7"
@@ -90,9 +90,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp"
+                    android:padding="@dimen/home_card_padding"
                     android:gravity="center"
-                    android:minHeight="170dp">
+                    android:minHeight="@dimen/home_card_min_height">
 
                     <ImageView
                         android:layout_width="44dp"
@@ -106,7 +106,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="5 kWh"
-                        android:textSize="20sp"
+                        android:textSize="@dimen/home_usage_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#D97706"
                         android:gravity="center"
@@ -130,7 +130,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="10dp"
-                android:minHeight="170dp"
+                android:minHeight="@dimen/home_card_min_height"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="8dp"
                 app:cardBackgroundColor="#CFFAFE"
@@ -141,9 +141,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp"
+                    android:padding="@dimen/home_card_padding"
                     android:gravity="center"
-                    android:minHeight="170dp">
+                    android:minHeight="@dimen/home_card_min_height">
 
                     <ImageView
                         android:layout_width="44dp"
@@ -157,7 +157,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0 m³"
-                        android:textSize="20sp"
+                        android:textSize="@dimen/home_usage_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#0E7490"
                         android:gravity="center"
@@ -182,16 +182,16 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Chỉ số đồng hồ hiện tại"
-            android:textSize="22sp"
+            android:textSize="@dimen/home_section_title_text_size"
             android:textStyle="bold"
             android:textColor="#1A1A1A"
-            android:layout_marginBottom="18dp" />
+            android:layout_marginBottom="@dimen/home_title_margin_bottom" />
 
         <!-- Electric Reading Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
+            android:layout_marginBottom="@dimen/home_card_margin_bottom"
             app:cardCornerRadius="18dp"
             app:cardElevation="6dp"
             app:cardBackgroundColor="#FFFFFF"
@@ -202,7 +202,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="22dp"
+                android:padding="@dimen/home_reading_card_padding"
                 android:gravity="center_vertical">
 
                 <View
@@ -237,7 +237,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="100 kWh"
-                        android:textSize="22sp"
+                        android:textSize="@dimen/home_reading_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#1A1A1A"
                         android:layout_marginTop="4dp" />
@@ -263,7 +263,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="22dp"
+                android:padding="@dimen/home_reading_card_padding"
                 android:gravity="center_vertical">
 
                 <View
@@ -298,7 +298,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="200 m³"
-                        android:textSize="22sp"
+                        android:textSize="@dimen/home_reading_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#1A1A1A"
                         android:layout_marginTop="4dp" />
@@ -324,7 +324,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="18dp"
+                android:padding="@dimen/home_tips_card_padding"
                 android:gravity="center_vertical">
 
                 <ImageView
