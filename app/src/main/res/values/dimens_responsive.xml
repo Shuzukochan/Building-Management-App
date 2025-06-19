@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home Fragment Responsive Dimensions (Height < 950dp) -->
+    <dimen name="home_main_padding">14dp</dimen>
+    <dimen name="home_header_margin_bottom">16dp</dimen>
+    <dimen name="home_cards_margin_bottom">20dp</dimen>
+    <dimen name="home_title_margin_bottom">10dp</dimen>
+    <dimen name="home_card_margin_bottom">8dp</dimen>
+    <dimen name="home_card_padding">14dp</dimen>
+    <dimen name="home_reading_card_padding">16dp</dimen>
+    <dimen name="home_tips_card_padding">12dp</dimen>
+    <dimen name="home_card_min_height">120dp</dimen>
+    
+    <!-- Text Sizes for Smaller Screens -->
+    <dimen name="home_title_text_size">22sp</dimen>
+    <dimen name="home_subtitle_text_size">13sp</dimen>
+    <dimen name="home_section_title_text_size">18sp</dimen>
+    <dimen name="home_usage_value_text_size">16sp</dimen>
+    <dimen name="home_reading_value_text_size">18sp</dimen>
+    
+    <!-- Chart Fragment Responsive Dimensions (Height < 950dp) -->
+    <dimen name="chart_main_padding">12dp</dimen>
+    <dimen name="chart_card_padding">12dp</dimen>
+    <dimen name="chart_card_margin_bottom">32dp</dimen>
+    <dimen name="chart_header_margin_bottom">8dp</dimen>
+    <dimen name="chart_date_margin_bottom">6dp</dimen>
+    <dimen name="chart_height">160dp</dimen>
+    <dimen name="chart_title_text_size">18sp</dimen>
+    <dimen name="chart_label_text_size">10sp</dimen>
+    <dimen name="chart_edittext_height">38dp</dimen>
+    
+    <!-- Pay Fragment Responsive Dimensions (Height < 950dp) -->
+    <dimen name="pay_main_padding">12dp</dimen>
+    <dimen name="pay_card_padding">14dp</dimen>
+    <dimen name="pay_card_margin_bottom">12dp</dimen>
+    <dimen name="pay_detail_padding">12dp</dimen>
+    <dimen name="pay_header_padding">10dp</dimen>
+    <dimen name="pay_button_padding_vertical">12dp</dimen>
+    <dimen name="pay_status_card_padding">16dp</dimen>
+    
+    <!-- Pay Fragment Text Sizes (Height < 950dp) -->
+    <dimen name="pay_title_text_size">16sp</dimen>
+    <dimen name="pay_status_text_size">16sp</dimen>
+    <dimen name="pay_detail_text_size">13sp</dimen>
+    <dimen name="pay_total_text_size">20sp</dimen>
+    <dimen name="pay_button_text_size">16sp</dimen>
+    <dimen name="pay_note_text_size">12sp</dimen>
+    
+    <!-- Settings Fragment Responsive Dimensions (Height < 950dp) -->
+    <dimen name="settings_main_padding">8dp</dimen>
+    <dimen name="settings_card_padding">12dp</dimen>
+    <dimen name="settings_card_margin_bottom">8dp</dimen>
+    <dimen name="settings_header_margin_bottom">12dp</dimen>
+    <dimen name="settings_section_margin_bottom">4dp</dimen>
+    <dimen name="settings_item_height">44dp</dimen>
+    <dimen name="settings_item_padding">12dp</dimen>
+    <dimen name="settings_user_info_margin_bottom">12dp</dimen>
+    
+    <!-- Settings Fragment Text Sizes (Height < 950dp) -->
+    <dimen name="settings_title_text_size">22sp</dimen>
+    <dimen name="settings_section_text_size">12sp</dimen>
+    <dimen name="settings_item_text_size">12sp</dimen>
+    <dimen name="settings_user_name_text_size">16sp</dimen>
+    <dimen name="settings_room_text_size">15sp</dimen>
+    <dimen name="settings_phone_text_size">13sp</dimen>
+    <dimen name="settings_label_text_size">10sp</dimen>
+    <dimen name="settings_logout_text_size">14sp</dimen>
+</resources> 
