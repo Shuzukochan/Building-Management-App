@@ -18,13 +18,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginTop="30dp"
-        android:contentDescription="image" />
+        android:contentDescription="@string/sign_in_image_description" />
     <TextView
         android:id="@+id/tvLogin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="45dp"
-        android:text="Đăng nhập"
+        android:text="@string/sign_in_title"
         android:textSize="36sp"
         android:textStyle="bold"
         android:layout_marginStart="20dp"
@@ -38,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginTop="10dp"
-        android:text="Vui lòng nhập số điện thoại."
+        android:text="@string/sign_in_message"
         android:textColor="@color/black"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -71,7 +71,7 @@
             style="@style/CustomTextInputLayoutStyle"
             app:boxStrokeColor="@color/textinput_border_focused"
             app:hintTextColor="@color/nav_unselected"
-            android:hint="Số điện thoại"
+            android:hint="@string/sign_in_phone_hint"
             app:errorEnabled="true"
             app:errorTextAppearance="@style/TextAppearance.MaterialComponents.Caption"
             app:helperTextEnabled="false">
@@ -101,7 +101,7 @@
         android:layout_marginTop="0dp"
         android:layout_marginEnd="@dimen/start_end_margin"
         android:backgroundTint="@color/button_primary"
-        android:text="Gửi mã OTP"
+        android:text="@string/sign_in_send_otp_button"
         android:textColor="@color/white"
         android:textSize="20sp"
         android:textStyle="bold"

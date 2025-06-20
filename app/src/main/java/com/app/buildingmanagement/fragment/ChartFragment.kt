@@ -3,7 +3,6 @@ package com.app.buildingmanagement.fragment
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,10 +41,6 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
     private val displayDateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN"))
     private val displayMonthFormatter = SimpleDateFormat("MM/yyyy", Locale("vi", "VN"))
 
-    companion object {
-        private const val TAG = "ChartFragment"
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -62,25 +57,17 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         setupDatePickers()
         setDefaultRanges()
 
-        // Đăng ký listener để nhận update từ SharedDataManager
         SharedDataManager.addListener(this)
-
-        // Load data với cache - sẽ được xử lý bởi onCacheReady nếu có cache
         loadChartDataWithCache()
     }
 
     override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
         if (_binding == null || !isAdded) return
-
-        Log.d(TAG, "Received data update for room: $roomNumber")
         loadChartDataFromSnapshot(roomSnapshot)
     }
 
     override fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) {
         if (_binding == null || !isAdded) return
-
-        Log.d(TAG, "Cache ready for room: $roomNumber")
-        // Load ngay từ cache
         loadChartDataFromSnapshot(roomSnapshot)
     }
 
@@ -91,18 +78,12 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun loadChartDataWithCache() {
-        // Kiểm tra cache trước
         val cachedSnapshot = SharedDataManager.getCachedRoomSnapshot()
         val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
 
         if (cachedSnapshot != null && cachedRoomNumber != null) {
-            Log.d(TAG, "Using cached data for room: $cachedRoomNumber")
-            // Sử dụng dữ liệu cache → hiển thị ngay
             loadChartDataFromSnapshot(cachedSnapshot)
         } else {
-            Log.d(TAG, "No cache available, waiting for cache or loading from Firebase")
-            // Sẽ được xử lý bởi onCacheReady khi HomeFragment load xong
-            // Hoặc fallback load từ Firebase nếu cần
             loadChartDataFromFirebase()
         }
     }
@@ -111,7 +92,6 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         val electricMap = mutableMapOf<String, Int>()
         val waterMap = mutableMapOf<String, Int>()
 
-        // Lấy dữ liệu từ history
         val historySnapshot = roomSnapshot.child("history")
 
         for (dateSnapshot in historySnapshot.children) {
@@ -142,21 +122,17 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                // Duyệt qua tất cả các phòng
                 for (roomSnapshot in snapshot.children) {
                     val tenantsSnapshot = roomSnapshot.child("tenants")
                     var phoneFound = false
 
-                    // Duyệt qua tất cả các thành viên trong phòng
                     for (tenantSnapshot in tenantsSnapshot.children) {
                         val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
                         if (phoneInTenant == phone) {
                             phoneFound = true
                             val roomNumber = roomSnapshot.key
                             if (roomNumber != null) {
-                                // Cập nhật cache
                                 SharedDataManager.setCachedData(roomSnapshot, roomNumber, phone)
-                                Log.d(TAG, "Found matching phone in room: $roomNumber, tenant: ${tenantSnapshot.key}")
                             }
                             loadChartDataFromSnapshot(roomSnapshot)
                             break
@@ -164,7 +140,7 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     }
 
                     if (phoneFound) {
-                        break // Thoát khỏi vòng lặp rooms khi đã tìm thấy
+                        break
                     }
                 }
             }
@@ -175,7 +151,6 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         })
     }
 
-    // Các method khác giữ nguyên...
     private fun setupSpinners() {
         val adapter = ArrayAdapter(
             requireContext(),
@@ -387,44 +362,27 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             val prev = map[prevKey]
             if (prev != null && curr != null) curr - prev else 0
         } else {
-            // Logic mới cho tháng: giống HomeFragment
             val prevMonth = Calendar.getInstance().apply {
                 time = cal.time
                 add(Calendar.MONTH, -1)
             }
             val prevMonthKey = firebaseMonthFormatter.format(prevMonth.time)
             
-            Log.d(TAG, "=== ChartFragment: Calculating consumption for month $key ===")
-            
-            // Lấy dữ liệu tháng hiện tại và tháng trước
             val currentMonthData = map.filterKeys { it.startsWith(key) }.toSortedMap()
             val prevMonthData = map.filterKeys { it.startsWith(prevMonthKey) }.toSortedMap()
-            
-            Log.d(TAG, "Current month data: $currentMonthData")
-            Log.d(TAG, "Previous month data: $prevMonthData")
             
             val currentValues = currentMonthData.values.toList()
             val prevValues = prevMonthData.values.toList()
             
-            Log.d(TAG, "Current month values: $currentValues")
-            Log.d(TAG, "Previous month values: $prevValues")
-            
             val currentMaxValue = currentValues.maxOrNull() ?: 0
             val prevMonthLastValue = prevValues.lastOrNull()
             
-            val result = if (prevMonthLastValue != null) {
-                // Trường hợp bình thường: có dữ liệu tháng trước
-                Log.d(TAG, "Normal case: $currentMaxValue - $prevMonthLastValue = ${currentMaxValue - prevMonthLastValue}")
+            if (prevMonthLastValue != null) {
                 currentMaxValue - prevMonthLastValue
             } else {
-                // Trường hợp đặc biệt: không có dữ liệu tháng trước
                 val currentMinValue = currentValues.minOrNull() ?: 0
-                Log.d(TAG, "Special case: $currentMaxValue - $currentMinValue = ${currentMaxValue - currentMinValue}")
                 currentMaxValue - currentMinValue
             }
-            
-            Log.d(TAG, "Final result: $result")
-            result
         }
     }
 
@@ -494,7 +452,6 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Hủy đăng ký listener
         SharedDataManager.removeListener(this)
         _binding = null
     }

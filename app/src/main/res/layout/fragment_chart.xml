@@ -1,5 +1,6 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F7F7FB"
@@ -13,6 +14,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingBottom="12dp">
+
+    <!-- Header Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/chart_header_title"
+            android:textSize="@dimen/home_title_text_size"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A" />
+    </LinearLayout>
 
     <!-- Card container cho biểu đồ điện -->
         <androidx.cardview.widget.CardView
@@ -38,21 +55,24 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
+                    android:baselineAligned="false"
                     android:layout_marginBottom="@dimen/chart_header_margin_bottom">
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_electric_vector"
                         android:layout_marginTop="2dp"
                         android:layout_marginEnd="8dp"
-                        app:tint="#FF6B35" />
+                        android:contentDescription="@string/chart_electric_icon_description"
+                        android:src="@drawable/ic_electric_vector"
+                        app:tint="#FF6B35"
+                        tools:ignore="ImageContrastCheck" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Biểu đồ điện"
+                        android:text="@string/chart_electric_title"
                         android:textSize="@dimen/chart_title_text_size"
                         android:textStyle="bold"
                         android:textColor="#2C3E50" />
@@ -60,16 +80,19 @@
                     <Spinner
                         android:id="@+id/modeSpinnerElectric"
                         android:layout_width="wrap_content"
-                        android:layout_height="32dp"
+                        android:layout_height="38dp"
                         android:background="@drawable/bg_spinner_modern"
+                        android:minHeight="38dp"
                         android:paddingStart="10dp"
-                        android:paddingEnd="16dp" />
+                        android:paddingEnd="16dp"
+                        tools:ignore="TouchTargetSizeCheck" />
                 </LinearLayout>
 
                 <!-- Date range điện -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:baselineAligned="false"
                     android:orientation="horizontal"
                     android:weightSum="2"
                     android:layout_marginBottom="@dimen/chart_date_margin_bottom">
@@ -85,7 +108,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Từ ngày:"
+                            android:text="@string/chart_from_date_label"
                             android:textSize="@dimen/chart_label_text_size"
                             android:textColor="#666666"
                             android:layout_marginBottom="2dp" />
@@ -93,15 +116,19 @@
                         <EditText
                             android:id="@+id/fromDateElectric"
                             android:layout_width="match_parent"
-                            android:layout_height="@dimen/chart_edittext_height"
+                            android:layout_height="38dp"
+                            android:autofillHints="date"
                             android:background="@drawable/bg_edittext_border"
-                            android:padding="8dp"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:textSize="12sp"
                             android:drawableStart="@drawable/ic_calendar"
                             android:drawablePadding="4dp"
-                            android:hint="Chọn ngày" />
+                            android:focusable="false"
+                            android:hint="@string/chart_select_date_hint"
+                            android:inputType="none"
+                            android:minHeight="48dp"
+                            android:padding="8dp"
+                            android:textColorHint="#757575"
+                            android:textSize="12sp"
+                            tools:ignore="TextFields,DuplicateSpeakableTextCheck,TouchTargetSizeCheck" />
                     </LinearLayout>
 
                     <!-- To date điện -->
@@ -115,7 +142,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đến ngày:"
+                            android:text="@string/chart_to_date_label"
                             android:textSize="@dimen/chart_label_text_size"
                             android:textColor="#666666"
                             android:layout_marginBottom="2dp" />
@@ -123,15 +150,19 @@
                         <EditText
                             android:id="@+id/toDateElectric"
                             android:layout_width="match_parent"
-                            android:layout_height="@dimen/chart_edittext_height"
+                            android:layout_height="38dp"
+                            android:autofillHints="date"
                             android:background="@drawable/bg_edittext_border"
-                            android:padding="8dp"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:textSize="12sp"
                             android:drawableStart="@drawable/ic_calendar"
                             android:drawablePadding="4dp"
-                            android:hint="Chọn ngày" />
+                            android:focusable="false"
+                            android:hint="@string/chart_select_date_hint"
+                            android:inputType="none"
+                            android:minHeight="32dp"
+                            android:padding="8dp"
+                            android:textColorHint="#757575"
+                            android:textSize="12sp"
+                            tools:ignore="TextFields,TouchTargetSizeCheck" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -168,7 +199,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:baselineAligned="true"
+                    android:baselineAligned="false"
                     android:layout_marginBottom="@dimen/chart_header_margin_bottom">
 
                     <ImageView
@@ -177,13 +208,14 @@
                         android:layout_marginTop="2dp"
                         android:src="@drawable/ic_water_vector"
                         android:layout_marginEnd="8dp"
+                        android:contentDescription="@string/chart_water_icon_description"
                         app:tint="#3498DB" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Biểu đồ nước"
+                        android:text="@string/chart_water_title"
                         android:textSize="@dimen/chart_title_text_size"
                         android:textStyle="bold"
                         android:textColor="#2C3E50" />
@@ -191,16 +223,19 @@
                     <Spinner
                         android:id="@+id/modeSpinnerWater"
                         android:layout_width="wrap_content"
-                        android:layout_height="32dp"
+                        android:layout_height="38dp"
                         android:background="@drawable/bg_spinner_modern"
+                        android:minHeight="38dp"
                         android:paddingStart="10dp"
-                        android:paddingEnd="16dp" />
+                        android:paddingEnd="16dp"
+                        tools:ignore="TouchTargetSizeCheck" />
                 </LinearLayout>
 
                 <!-- Date range nước -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:baselineAligned="false"
                     android:orientation="horizontal"
                     android:weightSum="2"
                     android:layout_marginBottom="@dimen/chart_date_margin_bottom">
@@ -216,7 +251,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Từ ngày:"
+                            android:text="@string/chart_from_date_label"
                             android:textSize="@dimen/chart_label_text_size"
                             android:textColor="#666666"
                             android:layout_marginBottom="2dp" />
@@ -224,15 +259,19 @@
                         <EditText
                             android:id="@+id/fromDateWater"
                             android:layout_width="match_parent"
-                            android:layout_height="@dimen/chart_edittext_height"
+                            android:layout_height="38dp"
+                            android:autofillHints="date"
                             android:background="@drawable/bg_edittext_border"
-                            android:padding="8dp"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:textSize="12sp"
                             android:drawableStart="@drawable/ic_calendar"
                             android:drawablePadding="4dp"
-                            android:hint="Chọn ngày" />
+                            android:focusable="false"
+                            android:hint="@string/chart_select_date_hint"
+                            android:inputType="none"
+                            android:minHeight="48dp"
+                            android:padding="8dp"
+                            android:textColorHint="#757575"
+                            android:textSize="12sp"
+                            tools:ignore="TextFields,TouchTargetSizeCheck" />
                     </LinearLayout>
 
                     <!-- To date nước -->
@@ -246,7 +285,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đến ngày:"
+                            android:text="@string/chart_to_date_label"
                             android:textSize="@dimen/chart_label_text_size"
                             android:textColor="#666666"
                             android:layout_marginBottom="2dp" />
@@ -254,15 +293,19 @@
                         <EditText
                             android:id="@+id/toDateWater"
                             android:layout_width="match_parent"
-                            android:layout_height="@dimen/chart_edittext_height"
+                            android:layout_height="38dp"
+                            android:autofillHints="date"
                             android:background="@drawable/bg_edittext_border"
-                            android:padding="8dp"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:textSize="12sp"
                             android:drawableStart="@drawable/ic_calendar"
                             android:drawablePadding="4dp"
-                            android:hint="Chọn ngày" />
+                            android:focusable="false"
+                            android:hint="@string/chart_select_date_hint"
+                            android:inputType="none"
+                            android:minHeight="38dp"
+                            android:padding="8dp"
+                            android:textColorHint="#757575"
+                            android:textSize="12sp"
+                            tools:ignore="TextFields,TouchTargetSizeCheck" />
                     </LinearLayout>
                 </LinearLayout>
 

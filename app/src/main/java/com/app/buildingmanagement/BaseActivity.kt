@@ -15,9 +15,6 @@ open class BaseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
         enableEdgeToEdge()
-        // ❌ BỎ dòng setContentView(R.layout.activity_base) - Đây là nguyên nhân gây conflict
-
-        // ViewCompat.setOnApplyWindowInsetsListener sẽ được xử lý trong từng Activity con
     }
 
     fun showProgressBar() {
@@ -30,8 +27,7 @@ open class BaseActivity : AppCompatActivity() {
             }
             pb?.show()
         } catch (e: Exception) {
-            // Tránh crash nếu Activity đã bị destroy
-            android.util.Log.e("BaseActivity", "Error showing progress bar: ${e.message}")
+            // Handle error silently
         }
     }
 
@@ -39,8 +35,7 @@ open class BaseActivity : AppCompatActivity() {
         try {
             pb?.dismiss()
         } catch (e: Exception) {
-            // Tránh crash nếu Dialog đã bị destroy
-            android.util.Log.e("BaseActivity", "Error hiding progress bar: ${e.message}")
+            // Handle error silently
         }
     }
 
@@ -50,7 +45,7 @@ open class BaseActivity : AppCompatActivity() {
                 Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            android.util.Log.e("BaseActivity", "Error showing toast: ${e.message}")
+            // Handle error silently
         }
     }
 
@@ -59,7 +54,7 @@ open class BaseActivity : AppCompatActivity() {
         try {
             pb?.dismiss()
         } catch (e: Exception) {
-            android.util.Log.e("BaseActivity", "Error dismissing dialog in onDestroy: ${e.message}")
+            // Handle error silently
         } finally {
             pb = null
         }

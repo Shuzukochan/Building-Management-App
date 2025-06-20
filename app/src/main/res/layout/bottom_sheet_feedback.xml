@@ -28,11 +28,12 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginEnd="12dp"
-            android:src="@drawable/ic_feedback"
             android:background="@drawable/circle_background"
-            android:backgroundTint="#E8F5E8"
+            android:backgroundTint="#C8E6C9"
+            android:contentDescription="@string/feedback_icon_description"
             android:padding="8dp"
-            app:tint="#4CAF50" />
+            android:src="@drawable/ic_feedback"
+            app:tint="#2E7D32" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -43,7 +44,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Góp ý dịch vụ"
+                android:text="@string/feedback_title"
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/black" />
@@ -51,7 +52,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Chia sẻ trải nghiệm của bạn"
+                android:text="@string/feedback_subtitle"
                 android:textSize="14sp"
                 android:textColor="#666666"
                 android:layout_marginTop="2dp" />
@@ -78,7 +79,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Nội dung góp ý"
+                android:text="@string/feedback_content_label"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:textColor="#333333"
@@ -88,15 +89,16 @@
                 android:id="@+id/etFeedback"
                 android:layout_width="match_parent"
                 android:layout_height="120dp"
+                android:autofillHints="feedback"
                 android:background="@android:color/transparent"
-                android:padding="0dp"
-                android:hint="Hãy chia sẻ góp ý của bạn về dịch vụ quản lý tòa nhà..."
-                android:textColorHint="#999999"
-                android:textSize="14sp"
                 android:gravity="top"
+                android:hint="@string/feedback_hint"
                 android:inputType="textMultiLine"
                 android:maxLines="6"
-                android:scrollbars="vertical" />
+                android:padding="0dp"
+                android:scrollbars="vertical"
+                android:textColorHint="#546E7A"
+                android:textSize="14sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
@@ -115,13 +117,14 @@
             android:layout_height="20dp"
             android:layout_marginEnd="12dp"
             android:src="@drawable/ic_privacy"
+            android:contentDescription="@string/feedback_privacy_icon_description"
             app:tint="#666666" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Gửi góp ý ẩn danh"
+            android:text="@string/feedback_anonymous_option"
             android:textSize="14sp"
             android:textColor="@color/black" />
 
@@ -147,7 +150,7 @@
             android:layout_height="52dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="Hủy"
+            android:text="@string/feedback_cancel_button"
             android:textColor="#666666"
             android:backgroundTint="@android:color/transparent"
             app:strokeColor="#E0E0E0"
@@ -159,11 +162,11 @@
             android:id="@+id/btnSubmitFeedback"
             android:layout_width="0dp"
             android:layout_height="52dp"
-            android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="Gửi góp ý"
-            android:textColor="@android:color/white"
+            android:layout_weight="1"
             android:backgroundTint="#4CAF50"
+            android:text="@string/feedback_submit_button"
+            android:textColor="#263238"
             app:cornerRadius="12dp"
             app:icon="@drawable/ic_send"
             app:iconGravity="textEnd"

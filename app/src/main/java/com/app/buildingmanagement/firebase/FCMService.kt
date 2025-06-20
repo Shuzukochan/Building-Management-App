@@ -12,7 +12,6 @@ import com.app.buildingmanagement.MainActivity
 import com.app.buildingmanagement.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -20,31 +19,18 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 
 class FCMService : FirebaseMessagingService() {
-
-    /**
-     * Called when message is received.
-     * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
-     */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        Log.d(TAG, "From: ${remoteMessage.from}")
-
-        // Xử lý notification payload
         remoteMessage.notification?.let { notification ->
             val title = notification.title ?: ""
             val body = notification.body ?: ""
 
-            Log.d(TAG, "Received notification: '$title' - '$body'")
-
-            // Hiển thị notification (FCM topics đã handle việc filter)
             if (title.isNotEmpty() || body.isNotEmpty()) {
                 sendNotification(title, body)
             }
             return
         }
 
-        // Xử lý data payload nếu không có notification payload
         if (remoteMessage.data.isNotEmpty()) {
-            Log.d(TAG, "Message data payload: ${remoteMessage.data}")
             handleDataPayload(remoteMessage.data)
         }
     }
@@ -60,24 +46,15 @@ class FCMService : FirebaseMessagingService() {
             sendNotification(title, body)
         }
     }
-
-    /**
-     * Called if the FCM registration token is updated
-     */
     override fun onNewToken(token: String) {
-        Log.d(TAG, "Token refreshed: $token")
-
-        // Lưu token mới vào SharedPreferences
         val sharedPref = getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
         sharedPref.edit().putString("fcm_token", token).apply()
 
-        // Nếu user đã đăng nhập, cập nhật token trong database
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser?.phoneNumber != null) {
             updateTokenInDatabase(token, currentUser.phoneNumber!!)
         }
     }
-
     private fun updateTokenInDatabase(token: String, phone: String) {
         val database = FirebaseDatabase.getInstance()
         val roomsRef = database.getReference("rooms")
@@ -90,25 +67,17 @@ class FCMService : FirebaseMessagingService() {
                         val roomNumber = roomSnapshot.key
                         if (roomNumber != null) {
                             roomsRef.child(roomNumber).child("FCM").child("token").setValue(token)
-                            Log.d(TAG, "Token updated for room: $roomNumber")
                         }
                         break
                     }
                 }
             }
-
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Error updating token: ${error.message}")
             }
         })
     }
-
-    /**
-     * Create and show notification - ĐƠN GIẢN HÓA
-     */
     private fun sendNotification(title: String, messageBody: String) {
         if (title.isEmpty() && messageBody.isEmpty()) {
-            Log.d(TAG, "Empty notification content, not showing")
             return
         }
 
@@ -133,7 +102,7 @@ class FCMService : FirebaseMessagingService() {
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Tạo notification channel đơn giản
+        // Tạo notification channel
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
@@ -145,10 +114,5 @@ class FCMService : FirebaseMessagingService() {
 
         val notificationId = System.currentTimeMillis().toInt()
         notificationManager.notify(notificationId, notificationBuilder.build())
-        Log.d(TAG, "Notification shown: '$title' - '$messageBody'")
-    }
-
-    companion object {
-        private const val TAG = "FCMService"
     }
 }

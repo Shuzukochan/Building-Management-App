@@ -15,7 +15,6 @@ data class SimplePayment(
 
     fun getFormattedDate(): String {
         return try {
-            // Xử lý format "2025-06-13 00:52:00"
             val parts = timestamp.split(" ")
             if (parts.size >= 2) {
                 val datePart = parts[0] // 2025-06-13

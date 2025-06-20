@@ -17,14 +17,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginTop="30dp"
-        android:contentDescription="Hình ảnh OTP" />
+        android:contentDescription="@string/otp_image_description" />
 
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
-        android:text="Nhập OTP"
+        android:text="@string/otp_title"
         android:textColor="@color/black"
         android:textSize="36sp"
         android:textStyle="bold"
@@ -38,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginTop="10dp"
-        android:text="Vui lòng nhập mã OTP đã gửi đến số điện thoại của bạn."
+        android:text="@string/otp_message"
         android:textColor="@color/black"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -226,7 +226,7 @@
         android:layout_marginTop="24dp"
         android:layout_marginEnd="@dimen/start_end_margin"
         android:backgroundTint="@color/button_primary"
-        android:text="Xác nhận"
+        android:text="@string/otp_confirm_button"
         android:textColor="@color/white"
         android:textSize="20sp"
         android:textStyle="bold"
@@ -246,7 +246,7 @@
         android:id="@+id/resendTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Gửi lại mã OTP"
+        android:text="@string/otp_resend_text"
         android:textColor="@color/textinput_border_focused"
         android:textSize="14sp"
         android:textStyle="bold"

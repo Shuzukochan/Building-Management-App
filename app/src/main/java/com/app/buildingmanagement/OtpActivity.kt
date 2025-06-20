@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -41,16 +40,12 @@ class OtpActivity : BaseActivity() {
         resendToken = intent.getParcelableExtra("resendToken")!!
         phoneNumber = intent.getStringExtra("phoneNumber")!!
 
-        Log.d("OTP", "Received verificationId: $verificationId")
-        Log.d("OTP", "Received phoneNumber: $phoneNumber")
-
         addTextWatchers()
         resendOTPTimer()
 
         binding?.btnSubmitOtp?.setOnClickListener {
             if (!isAuthenticationInProgress) {
                 val typedOTP = getOtpFromFields()
-                Log.d("OTP", "User entered OTP: '$typedOTP' (length: ${typedOTP.length})")
 
                 if (typedOTP.length == 6) {
                     val credential = PhoneAuthProvider.getCredential(verificationId, typedOTP)
@@ -76,8 +71,6 @@ class OtpActivity : BaseActivity() {
     }
 
     private fun resendVerificationCode() {
-        Log.d("OTP", "Resending verification code to: $phoneNumber")
-
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -112,25 +105,16 @@ class OtpActivity : BaseActivity() {
     }
 
     private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
-        Log.d("OTP", "Attempting to sign in with credential")
-
         auth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
-                Log.d("OTP", "Authentication task completed. Success: ${task.isSuccessful}")
-
                 hideProgressBar()
                 isAuthenticationInProgress = false
 
                 if (task.isSuccessful) {
-                    Log.d("OTP", "Sign in successful")
                     handleSuccessfulAuthentication()
                 } else {
-                    Log.e("OTP", "Sign in failed", task.exception)
-
-                    // Kiểm tra xem user có được authenticate không bất chấp lỗi
                     val currentUser = auth.currentUser
                     if (currentUser != null) {
-                        Log.d("OTP", "User is authenticated despite task failure")
                         handleSuccessfulAuthentication()
                         return@addOnCompleteListener
                     }
@@ -148,8 +132,6 @@ class OtpActivity : BaseActivity() {
                 }
             }
             .addOnSuccessListener {
-                Log.d("OTP", "Authentication success listener triggered")
-                // Đảm bảo navigate ngay cả khi success listener được gọi
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (auth.currentUser != null && !isFinishing) {
                         handleSuccessfulAuthentication()
@@ -161,10 +143,8 @@ class OtpActivity : BaseActivity() {
     private fun handleSuccessfulAuthentication() {
         if (isFinishing) return
 
-        Log.d("OTP", "Handling successful authentication")
         Toast.makeText(this, getString(R.string.otp_login_success), Toast.LENGTH_SHORT).show()
 
-        // Delay ngắn để đảm bảo Firebase state được cập nhật
         Handler(Looper.getMainLooper()).postDelayed({
             navigateToMain()
         }, 200)
@@ -173,10 +153,6 @@ class OtpActivity : BaseActivity() {
     private fun navigateToMain() {
         if (isFinishing) return
 
-        Log.d("OTP", "Navigating to main activity")
-        
-        // CLEAR CACHE KHI LOGIN ĐỂ TRÁNH CONFLICT GIỮA CÁC USER
-        Log.d("OTP", "Clearing cache before going to MainActivity")
         com.app.buildingmanagement.data.SharedDataManager.clearCache()
         
         val intent = Intent(this, MainActivity::class.java)
@@ -187,7 +163,6 @@ class OtpActivity : BaseActivity() {
 
     private val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-            Log.d("OTP", "Auto verification completed")
             if (!isAuthenticationInProgress) {
                 isAuthenticationInProgress = true
                 showProgressBar()
@@ -196,7 +171,6 @@ class OtpActivity : BaseActivity() {
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
-            Log.e("OTP", "Verification Failed: ${e.message}", e)
             hideProgressBar()
             isAuthenticationInProgress = false
 
@@ -213,7 +187,6 @@ class OtpActivity : BaseActivity() {
             newVerificationId: String,
             newResendToken: PhoneAuthProvider.ForceResendingToken
         ) {
-            Log.d("OTP", "New code sent, new verificationId: $newVerificationId")
             verificationId = newVerificationId
             resendToken = newResendToken
             Toast.makeText(this@OtpActivity, getString(R.string.otp_resent), Toast.LENGTH_SHORT).show()
@@ -228,7 +201,6 @@ class OtpActivity : BaseActivity() {
                 binding?.otpInput5?.text.toString() +
                 binding?.otpInput6?.text.toString()).replace("\\s".toRegex(), "")
 
-        Log.d("OTP", "Getting OTP: '$otp'")
         return otp
     }
 
@@ -284,18 +256,14 @@ class OtpActivity : BaseActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Kiểm tra authentication state khi activity start
         if (auth.currentUser != null && !isAuthenticationInProgress) {
-            Log.d("OTP", "User already authenticated in onStart")
             navigateToMain()
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // Kiểm tra lại authentication state
         if (auth.currentUser != null && !isAuthenticationInProgress) {
-            Log.d("OTP", "User already authenticated in onResume")
             navigateToMain()
         }
     }

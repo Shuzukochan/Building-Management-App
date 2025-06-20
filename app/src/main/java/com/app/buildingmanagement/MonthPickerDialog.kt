@@ -1,5 +1,6 @@
 package com.app.buildingmanagement
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
@@ -54,6 +55,7 @@ class MonthPickerDialog(
 
         var currentViewYear = selectedYear
 
+        @SuppressLint("SetTextI18n")
         fun updateHeader() {
             txtYear.text = String.format(Locale.getDefault(), "%d", currentViewYear)
             titleText.text = context.getString(R.string.month_year_title, selectedMonth + 1, selectedYear)

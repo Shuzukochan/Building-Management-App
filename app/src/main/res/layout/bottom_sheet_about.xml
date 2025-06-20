@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -17,7 +16,6 @@
         android:alpha="0.3" />
 
     <!-- Logo trường và lab -->
-    <!-- Logo trường và lab -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -32,7 +30,8 @@
             android:layout_marginEnd="8dp"
             android:src="@drawable/logo_hcmute"
             android:adjustViewBounds="true"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/about_logo_hcmute_description" />
 
         <!-- Logo phòng lab -->
         <ImageView
@@ -40,7 +39,8 @@
             android:layout_height="56dp"
             android:src="@drawable/logo_iot_vision"
             android:adjustViewBounds="true"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/about_logo_iot_description" />
     </LinearLayout>
 
 
@@ -49,7 +49,7 @@
         android:id="@+id/tvAppName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Ứng dụng quản lý tòa nhà"
+        android:text="@string/about_app_name"
         android:textSize="22sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -60,7 +60,7 @@
         android:id="@+id/tvVersion"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Phiên bản 1.0.0"
+        android:text="@string/about_version"
         android:textSize="14sp"
         android:textColor="#666666"
         android:gravity="center"
@@ -70,7 +70,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Về ứng dụng"
+        android:text="@string/about_app_section"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -79,7 +79,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Ứng dụng quản lý thông minh giúp tối ưu hóa việc quản lý và vận hành tòa nhà. Cung cấp các tính năng theo dõi, giám sát và tương tác hiệu quả giữa cư dân và ban quản lý."
+        android:text="@string/about_app_description"
         android:textSize="14sp"
         android:textColor="#666666"
         android:lineSpacingExtra="4dp"
@@ -89,7 +89,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Thành viên thực hiện"
+        android:text="@string/about_team_section"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -114,15 +114,15 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Sinh viên 1:"
-                android:textSize="13sp"
-                android:textColor="#999999" />
+                android:text="@string/about_student_1_label"
+                android:textColor="#546E7A"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tvStudent1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Nguyễn Bá Uy - 21146362"
+                android:text="@string/about_student_1_info"
                 android:textSize="13sp"
                 android:textColor="#666666"
                 android:textStyle="bold" />
@@ -139,15 +139,15 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Sinh viên 2:"
-                android:textSize="13sp"
-                android:textColor="#999999" />
+                android:text="@string/about_student_2_label"
+                android:textColor="#546E7A"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tvStudent2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Trần Văn Huy - 21146225"
+                android:text="@string/about_student_2_info"
                 android:textSize="13sp"
                 android:textColor="#666666"
                 android:textStyle="bold" />
@@ -164,15 +164,15 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Sinh viên 3:"
-                android:textSize="13sp"
-                android:textColor="#999999" />
+                android:text="@string/about_student_3_label"
+                android:textColor="#546E7A"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tvStudent3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Huỳnh Quang Vũ - 21146366"
+                android:text="@string/about_student_3_info"
                 android:textSize="13sp"
                 android:textColor="#666666"
                 android:textStyle="bold" />
@@ -195,15 +195,15 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Giảng viên hướng dẫn:"
-                android:textSize="13sp"
-                android:textColor="#999999" />
+                android:text="@string/about_supervisor_label"
+                android:textColor="#546E7A"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tvSupervisor"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TS. Nguyễn Văn Thái"
+                android:text="@string/about_supervisor_info"
                 android:textSize="13sp"
                 android:textColor="#666666"
                 android:textStyle="bold" />
@@ -222,18 +222,19 @@
             android:id="@+id/tvUniversity"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Đại học Sư phạm Kỹ thuật TP.HCM"
+            android:text="@string/about_university"
             android:textSize="14sp"
             android:textColor="#666666"
             android:textStyle="bold"
             android:gravity="center" />
     </LinearLayout>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="© 2025 Building Management"
-        android:textSize="12sp"
-        android:textColor="#CCCCCC"
+        android:layout_marginTop="4dp"
         android:gravity="center"
-        android:layout_marginTop="4dp" />
+        android:text="@string/about_copyright"
+        android:textColor="#757575"
+        android:textSize="12sp" />
 </LinearLayout>

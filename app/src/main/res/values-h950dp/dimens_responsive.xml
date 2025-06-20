@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Home Fragment Responsive Dimensions (Height >= 950dp) -->
-    <dimen name="home_main_padding">20dp</dimen>
-    <dimen name="home_header_margin_bottom">28dp</dimen>
+    <dimen name="home_main_padding">16dp</dimen>
+    <dimen name="home_header_margin_bottom">8dp</dimen>
     <dimen name="home_cards_margin_bottom">36dp</dimen>
     <dimen name="home_title_margin_bottom">18dp</dimen>
     <dimen name="home_card_margin_bottom">14dp</dimen>
@@ -24,7 +24,7 @@
     <dimen name="chart_card_margin_bottom">16dp</dimen>
     <dimen name="chart_header_margin_bottom">12dp</dimen>
     <dimen name="chart_date_margin_bottom">8dp</dimen>
-    <dimen name="chart_height">240dp</dimen>
+    <dimen name="chart_height">190dp</dimen>
     <dimen name="chart_title_text_size">20sp</dimen>
     <dimen name="chart_label_text_size">11sp</dimen>
     <dimen name="chart_edittext_height">42dp</dimen>

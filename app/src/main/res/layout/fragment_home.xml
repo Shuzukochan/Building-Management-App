@@ -26,7 +26,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Tổng quan tiêu thụ"
+                android:text="@string/home_overview_title"
                 android:textSize="@dimen/home_title_text_size"
                 android:textStyle="bold"
                 android:textColor="#1A1A1A" />
@@ -41,7 +41,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Tháng 06/2025"
+                    android:text="@string/home_current_month"
                     android:textSize="@dimen/home_subtitle_text_size"
                     android:textColor="#6B7280" />
 
@@ -56,7 +56,7 @@
                     android:id="@+id/tvRoomNumber"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Phòng 1"
+                    android:text="@string/home_room_default"
                     android:textSize="@dimen/home_subtitle_text_size"
                     android:textColor="#6B7280"
                     android:textStyle="bold" />
@@ -97,28 +97,30 @@
                     <ImageView
                         android:layout_width="44dp"
                         android:layout_height="44dp"
+                        android:layout_marginBottom="12dp"
+                        android:contentDescription="@string/home_electric_icon_description"
                         android:src="@drawable/ic_electric_vector"
                         app:tint="#F59E0B"
-                        android:layout_marginBottom="12dp" />
+                        tools:ignore="ImageContrastCheck" />
 
                     <TextView
                         android:id="@+id/tvElectricUsed"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="5 kWh"
-                        android:textSize="@dimen/home_usage_value_text_size"
-                        android:textStyle="bold"
-                        android:textColor="#D97706"
+                        android:layout_marginBottom="6dp"
                         android:gravity="center"
-                        android:layout_marginBottom="6dp" />
+                        android:text="@string/home_electric_default_usage"
+                        android:textColor="#E65100"
+                        android:textSize="@dimen/home_usage_value_text_size"
+                        android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Đã sử dụng"
-                        android:textSize="13sp"
-                        android:textColor="#78716C"
-                        android:gravity="center" />
+                        android:gravity="center"
+                        android:text="@string/home_usage_label"
+                        android:textColor="#616161"
+                        android:textSize="13sp" />
 
                 </LinearLayout>
 
@@ -149,6 +151,7 @@
                         android:layout_width="44dp"
                         android:layout_height="44dp"
                         android:src="@drawable/ic_water_vector"
+                        android:contentDescription="@string/home_water_icon_description"
                         app:tint="#0891B2"
                         android:layout_marginBottom="12dp" />
 
@@ -156,7 +159,7 @@
                         android:id="@+id/tvWaterUsed"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0 m³"
+                        android:text="@string/home_water_default_usage"
                         android:textSize="@dimen/home_usage_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#0E7490"
@@ -166,10 +169,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Đã sử dụng"
-                        android:textSize="13sp"
-                        android:textColor="#78716C"
-                        android:gravity="center" />
+                        android:gravity="center"
+                        android:text="@string/home_usage_label"
+                        android:textColor="#616161"
+                        android:textSize="13sp" />
 
                 </LinearLayout>
 
@@ -181,7 +184,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Chỉ số đồng hồ hiện tại"
+            android:text="@string/home_meter_reading_title"
             android:textSize="@dimen/home_section_title_text_size"
             android:textStyle="bold"
             android:textColor="#1A1A1A"
@@ -215,9 +218,11 @@
                 <ImageView
                     android:layout_width="38dp"
                     android:layout_height="38dp"
+                    android:layout_marginEnd="18dp"
+                    android:contentDescription="@string/home_electric_icon_description"
                     android:src="@drawable/ic_electric_vector"
                     app:tint="#F59E0B"
-                    android:layout_marginEnd="18dp" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -228,7 +233,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Số điện"
+                        android:text="@string/home_electric_label"
                         android:textSize="14sp"
                         android:textColor="#6B7280" />
 
@@ -236,7 +241,7 @@
                         android:id="@+id/tvElectric"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="100 kWh"
+                        android:text="@string/home_electric_default_reading"
                         android:textSize="@dimen/home_reading_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#1A1A1A"
@@ -277,6 +282,7 @@
                     android:layout_width="38dp"
                     android:layout_height="38dp"
                     android:src="@drawable/ic_water_vector"
+                    android:contentDescription="@string/home_water_icon_description"
                     app:tint="#0891B2"
                     android:layout_marginEnd="18dp" />
 
@@ -289,7 +295,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Số nước"
+                        android:text="@string/home_water_label"
                         android:textSize="14sp"
                         android:textColor="#6B7280" />
 
@@ -297,7 +303,7 @@
                         android:id="@+id/tvWater"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="200 m³"
+                        android:text="@string/home_water_default_reading"
                         android:textSize="@dimen/home_reading_value_text_size"
                         android:textStyle="bold"
                         android:textColor="#1A1A1A"
@@ -331,6 +337,7 @@
                     android:layout_width="30dp"
                     android:layout_height="30dp"
                     android:src="@drawable/ic_tips"
+                    android:contentDescription="@string/home_tips_icon_description"
                     app:tint="#059669"
                     android:layout_marginEnd="14dp" />
 
@@ -343,7 +350,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Mẹo tiết kiệm hôm nay"
+                        android:text="@string/home_tips_title"
                         android:textSize="15sp"
                         android:textStyle="bold"
                         android:textColor="#047857" />
@@ -351,7 +358,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tắt thiết bị khi không dùng để tiết kiệm 10-15% chi phí!"
+                        android:text="@string/home_tips_content"
                         android:textSize="13sp"
                         android:textColor="#047857"
                         android:layout_marginTop="3dp"

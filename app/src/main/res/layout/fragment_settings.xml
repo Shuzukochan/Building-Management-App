@@ -14,17 +14,21 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Header -->
-        <TextView
-            android:id="@+id/tv_settings"
+        <!-- Header Section -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/settings_header_margin_bottom"
-            android:gravity="center"
-            android:text="Cài đặt"
-            android:textColor="@color/black"
-            android:textSize="@dimen/settings_title_text_size"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_header_title"
+                android:textSize="@dimen/home_title_text_size"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A" />
+        </LinearLayout>
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -57,7 +61,9 @@
                         android:background="@drawable/circle_background"
                         android:backgroundTint="#FFF3E0"
                         android:padding="8dp"
-                        app:tint="#F57C00" />
+                        android:contentDescription="@string/settings_user_icon_description"
+                        app:tint="#F57C00"
+                        tools:ignore="ImageContrastCheck" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -68,7 +74,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Tên người dùng"
+                            android:text="@string/settings_user_name_label"
                             android:textColor="#666666"
                             android:textSize="@dimen/settings_label_text_size"
                             android:layout_marginBottom="2dp" />
@@ -77,7 +83,7 @@
                             android:id="@+id/tvUserName"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đang tải..."
+                            android:text="@string/settings_loading_text"
                             android:textColor="@color/black"
                             android:textSize="@dimen/settings_user_name_text_size"
                             android:textStyle="bold" />
@@ -100,7 +106,9 @@
                         android:background="@drawable/circle_background"
                         android:backgroundTint="#E3F2FD"
                         android:padding="8dp"
-                        app:tint="#1976D2" />
+                        android:contentDescription="@string/settings_room_icon_description"
+                        app:tint="#1976D2"
+                        tools:ignore="ImageContrastCheck" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -111,7 +119,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Số phòng"
+                            android:text="@string/settings_room_label"
                             android:textColor="#666666"
                             android:textSize="@dimen/settings_label_text_size"
                             android:layout_marginBottom="2dp" />
@@ -120,7 +128,7 @@
                             android:id="@+id/tvRoomNumber"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đang tải..."
+                            android:text="@string/settings_loading_text"
                             android:textColor="@color/black"
                             android:textSize="@dimen/settings_room_text_size"
                             android:textStyle="bold" />
@@ -142,7 +150,9 @@
                         android:background="@drawable/circle_background"
                         android:backgroundTint="#E8F5E8"
                         android:padding="8dp"
-                        app:tint="#388E3C" />
+                        android:contentDescription="@string/settings_phone_icon_description"
+                        app:tint="#388E3C"
+                        tools:ignore="ImageContrastCheck" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -153,7 +163,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Số điện thoại"
+                            android:text="@string/settings_phone_label"
                             android:textColor="#666666"
                             android:textSize="@dimen/settings_label_text_size"
                             android:layout_marginBottom="2dp" />
@@ -162,7 +172,7 @@
                             android:id="@+id/tv_phoneNumber"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đang tải..."
+                            android:text="@string/settings_loading_text"
                             android:textColor="@color/black"
                             android:textSize="@dimen/settings_phone_text_size" />
                     </LinearLayout>
@@ -176,7 +186,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
-            android:text="Thanh toán"
+            android:text="@string/settings_payment_section"
             android:textColor="#333333"
             android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
@@ -205,20 +215,22 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="@dimen/settings_item_padding"
-                    android:paddingEnd="@dimen/settings_item_padding">
+                    android:paddingEnd="@dimen/settings_item_padding"
+                    tools:ignore="UselessParent">
 
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_marginEnd="12dp"
                         android:src="@drawable/baseline_history_24"
+                        android:contentDescription="@string/settings_payment_history_icon_description"
                         app:tint="#666666" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="LỊCH SỬ THANH TOÁN"
+                        android:text="@string/settings_payment_history_label"
                         android:textColor="@color/black"
                         android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
@@ -226,8 +238,10 @@
                     <ImageView
                         android:layout_width="16dp"
                         android:layout_height="16dp"
+                        android:contentDescription="@string/settings_arrow_icon_description"
                         android:src="@drawable/baseline_arrow_forward_ios_24"
-                        app:tint="#CCCCCC" />
+                        app:tint="#CCCCCC"
+                        tools:ignore="ImageContrastCheck" />
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
@@ -238,7 +252,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
-            android:text="Ứng dụng"
+            android:text="@string/settings_app_section"
             android:textColor="#333333"
             android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
@@ -267,20 +281,22 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="@dimen/settings_item_padding"
-                    android:paddingEnd="@dimen/settings_item_padding">
+                    android:paddingEnd="@dimen/settings_item_padding"
+                    tools:ignore="UselessParent">
 
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_marginEnd="12dp"
                         android:src="@drawable/baseline_notifications_24"
+                        android:contentDescription="@string/settings_notification_icon_description"
                         app:tint="#666666" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="CHO PHÉP THÔNG BÁO"
+                        android:text="@string/settings_notification_label"
                         android:textColor="@color/black"
                         android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
@@ -307,7 +323,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/settings_section_margin_bottom"
             android:layout_marginStart="4dp"
-            android:text="Hỗ trợ"
+            android:text="@string/settings_support_section"
             android:textColor="#333333"
             android:textSize="@dimen/settings_section_text_size"
             android:textStyle="bold" />
@@ -343,13 +359,14 @@
                         android:layout_height="24dp"
                         android:layout_marginEnd="12dp"
                         android:src="@drawable/baseline_feedback_24"
+                        android:contentDescription="@string/settings_feedback_icon_description"
                         app:tint="#666666" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="GÓP Ý"
+                        android:text="@string/settings_feedback_label"
                         android:textColor="@color/black"
                         android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
@@ -357,8 +374,10 @@
                     <ImageView
                         android:layout_width="16dp"
                         android:layout_height="16dp"
+                        android:contentDescription="@string/settings_arrow_icon_description"
                         android:src="@drawable/baseline_arrow_forward_ios_24"
-                        app:tint="#CCCCCC" />
+                        app:tint="#CCCCCC"
+                        tools:ignore="ImageContrastCheck" />
                 </LinearLayout>
 
                 <View
@@ -384,13 +403,14 @@
                         android:layout_height="24dp"
                         android:layout_marginEnd="12dp"
                         android:src="@drawable/baseline_contact_support_24"
+                        android:contentDescription="@string/settings_contact_icon_description"
                         app:tint="#666666" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="LIÊN HỆ HỖ TRỢ"
+                        android:text="@string/settings_contact_label"
                         android:textColor="@color/black"
                         android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
@@ -398,8 +418,10 @@
                     <ImageView
                         android:layout_width="16dp"
                         android:layout_height="16dp"
+                        android:contentDescription="@string/settings_arrow_icon_description"
                         android:src="@drawable/baseline_arrow_forward_ios_24"
-                        app:tint="#CCCCCC" />
+                        app:tint="#CCCCCC"
+                        tools:ignore="ImageContrastCheck" />
                 </LinearLayout>
 
                 <View
@@ -425,22 +447,17 @@
                         android:layout_height="24dp"
                         android:layout_marginEnd="12dp"
                         android:src="@drawable/ic_info"
+                        android:contentDescription="@string/settings_about_icon_description"
                         app:tint="#666666" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="VỀ ỨNG DỤNG"
+                        android:text="@string/settings_about_label"
                         android:textColor="@color/black"
                         android:textSize="@dimen/settings_item_text_size"
                         android:textStyle="bold" />
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:src="@drawable/baseline_arrow_forward_ios_24"
-                        app:tint="#CCCCCC" />
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
@@ -472,7 +489,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="center"
-                    android:text="Đăng xuất"
+                    android:text="@string/settings_logout_label"
                     app:backgroundTint="#FF4444"
                     android:textColor="#FFFFFF"
                     android:textSize="@dimen/settings_logout_text_size"
@@ -482,6 +499,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/baseline_logout_24"
+                    android:contentDescription="@string/settings_logout_icon_description"
                     app:tint="#FFFFFF" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>

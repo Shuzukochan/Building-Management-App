@@ -3,7 +3,6 @@ package com.app.buildingmanagement
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
-import android.util.Log
 import androidx.core.view.WindowInsetsControllerCompat
 import com.app.buildingmanagement.databinding.ActivitySignInBinding
 import com.google.firebase.FirebaseException
@@ -56,7 +55,6 @@ class SignInActivity : BaseActivity() {
 
         binding?.tilPhone?.error = null
 
-        // Chuyển đầu số
         phone = if (phone.startsWith("0")) {
             phone.replaceFirst("0", "+84")
         } else if (!phone.startsWith("+")) {
@@ -68,9 +66,6 @@ class SignInActivity : BaseActivity() {
         phoneNumber = phone
 
         showProgressBar()
-
-        //FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(true)
-        //auth.firebaseAuthSettings.forceRecaptchaFlowForTesting(true) //Force dùng recapcha
 
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
@@ -94,14 +89,11 @@ class SignInActivity : BaseActivity() {
                     } else {
                         showToast(this, "Lỗi: ${task.exception?.message}")
                     }
-                    Log.d("SIGNIN", "signInWithPhoneAuthCredential: ${task.exception}")
                 }
             }
     }
 
     private fun goToMain() {
-        // CLEAR CACHE KHI LOGIN ĐỂ TRÁNH CONFLICT GIỮA CÁC USER
-        Log.d("SignInActivity", "Clearing cache before going to MainActivity")
         com.app.buildingmanagement.data.SharedDataManager.clearCache()
         
         startActivity(Intent(this, MainActivity::class.java))
@@ -115,7 +107,6 @@ class SignInActivity : BaseActivity() {
 
         override fun onVerificationFailed(e: FirebaseException) {
             hideProgressBar()
-            Log.e("SIGNIN", "onVerificationFailed: ${e.message}", e)
             showToast(this@SignInActivity, "Lỗi xác thực: ${e.message}")
         }
 

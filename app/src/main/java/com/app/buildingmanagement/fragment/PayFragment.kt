@@ -3,7 +3,6 @@ package com.app.buildingmanagement.fragment
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -48,13 +47,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
     private var monthKeys: List<String> = emptyList()
 
-    // Thêm list để track các listeners
     private val activeListeners = mutableListOf<ValueEventListener>()
 
-    companion object {
-        private const val PAYMENT_REQUEST_CODE = 1001
-        private const val TAG = "PayFragment"
-    }
+    private val paymentRequestCode = 1001
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -71,10 +66,8 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         database = FirebaseDatabase.getInstance()
         roomsRef = database.getReference("rooms")
 
-        // Đăng ký listener trước khi tìm room
         SharedDataManager.addListener(this)
 
-        // Hiển thị loading state trước
         showLoadingState()
 
         findUserRoomWithCache()
@@ -87,45 +80,30 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun showLoadingState() {
-        Log.d(TAG, "Showing loading state for PayFragment")
-        
-        // CHỈ SET ALPHA, KHÔNG THAY ĐỔI TEXT VÀ ENABLED
-        // Vì updateUIBasedOnMonth() sẽ handle text và enabled state
         binding.btnPayNow.alpha = 0.6f
     }
 
     private fun hideLoadingState() {
-        Log.d(TAG, "Hiding loading state for PayFragment")
-        
-        // Restore alpha về normal - ĐẢNG BẢO set sau khi background được update
         binding.btnPayNow.alpha = 1.0f
     }
 
     override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
         if (_binding == null || !isAdded) return
 
-        Log.d(TAG, "Received data update for room: $roomNumber")
         userRoomNumber = roomNumber
-        // Refresh payment status khi có data mới
         refreshPaymentStatus()
-        // Gọi hideLoadingState sau khi refresh
         hideLoadingState()
     }
 
     override fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) {
         if (_binding == null || !isAdded) return
 
-        Log.d(TAG, "Cache ready for room: $roomNumber")
         userRoomNumber = roomNumber
 
-        // Load dữ liệu từ cache ngay lập tức
         loadAvailableMonthsFromSnapshot(roomSnapshot)
         setupPaymentStatusListener()
         checkPaymentStatus()
         loadUsageData()
-        
-        // Hide loading state SAU KHI updateUIBasedOnMonth được gọi
-        // (sẽ được gọi trong checkPaymentStatus -> updateUIBasedOnMonth)
     }
 
     override fun onResume() {
@@ -135,114 +113,89 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Remove listener và cleanup
         SharedDataManager.removeListener(this)
         removeAllListeners()
         _binding = null
     }
 
     private fun removeAllListeners() {
-        // Remove tất cả active listeners
         userRoomNumber?.let { roomNumber ->
             roomsRef.child(roomNumber).child("payments").removeEventListener(paymentStatusListener)
         }
         activeListeners.clear()
     }
 
-    // Tạo một listener riêng để có thể remove sau này
     private val paymentStatusListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
-            // Kiểm tra fragment vẫn còn active
             if (_binding != null && isAdded) {
-                Log.d(TAG, "Payment data changed for room $userRoomNumber")
                 updateUIBasedOnMonth()
             }
         }
 
         override fun onCancelled(error: DatabaseError) {
-            if (_binding != null && isAdded) {
-                Log.e(TAG, "Payment listener error: ${error.message}")
-            }
+            // Handle error silently
         }
     }
 
     private fun findUserRoomWithCache() {
-        // Kiểm tra cache trước
         val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
         val cachedSnapshot = SharedDataManager.getCachedRoomSnapshot()
 
         if (cachedRoomNumber != null && cachedSnapshot != null) {
-            Log.d(TAG, "Using cached room number: $cachedRoomNumber")
             userRoomNumber = cachedRoomNumber
 
-            // Tiếp tục với logic hiện tại từ cached data
             loadAvailableMonthsFromSnapshot(cachedSnapshot)
             setupPaymentStatusListener()
             checkPaymentStatus()
             loadUsageData()
             
-            // QUAN TRỌNG: Hide loading state sau khi load xong từ cache
             hideLoadingState()
             return
         }
 
-        // Nếu không có cache, thực hiện như cũ
-        Log.d(TAG, "No cache available, loading from Firebase")
         findUserRoomFromFirebase()
     }
 
     private fun findUserRoomFromFirebase() {
         val phone = auth.currentUser?.phoneNumber ?: return
 
-        Log.d(TAG, "Finding room for phone: $phone")
-
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                // Kiểm tra fragment vẫn còn active
                 if (_binding == null || !isAdded) return
 
                 var roomFound = false
 
-                // Duyệt qua tất cả các phòng
                 for (roomSnapshot in snapshot.children) {
                     val tenantsSnapshot = roomSnapshot.child("tenants")
 
-                    // Duyệt qua tất cả các thành viên trong phòng
                     for (tenantSnapshot in tenantsSnapshot.children) {
                         val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
                         if (phoneInTenant == phone) {
                             roomFound = true
                             userRoomNumber = roomSnapshot.key
 
-                            Log.d(TAG, "Found user in room: $userRoomNumber, tenant: ${tenantSnapshot.key}")
-
-                            // Cập nhật cache
                             if (userRoomNumber != null) {
                                 SharedDataManager.setCachedData(roomSnapshot, userRoomNumber!!, phone)
                             }
 
-                            // Gọi spinner sau khi đã xác định phòng
                             loadAvailableMonthsFromSnapshot(roomSnapshot)
                             setupPaymentStatusListener()
 
-                            // Load initial data
                             checkPaymentStatus()
                             loadUsageData()
                             
-                            // QUAN TRỌNG: Hide loading state sau khi load xong từ Firebase
                             hideLoadingState()
 
-                            break // Thoát khỏi vòng lặp tenants
+                            break
                         }
                     }
 
                     if (roomFound) {
-                        break // Thoát khỏi vòng lặp rooms
+                        break
                     }
                 }
 
                 if (!roomFound) {
-                    Log.e(TAG, "User not found in any room")
                     hideLoadingState()
                     Toast.makeText(requireContext(), "Không tìm thấy phòng của bạn", Toast.LENGTH_SHORT).show()
                 }
@@ -250,13 +203,11 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
             override fun onCancelled(error: DatabaseError) {
                 if (_binding != null && isAdded) {
-                    Log.e(TAG, "Error finding user room: ${error.message}")
                     hideLoadingState()
                 }
             }
         }
 
-        // Thay đổi query - không còn sử dụng orderByChild("phone")
         roomsRef.addListenerForSingleValueEvent(listener)
     }
 
@@ -283,7 +234,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         if (monthKeys.isEmpty()) return
 
-        // Kiểm tra fragment vẫn còn active trước khi update UI
         if (_binding == null || !isAdded) return
 
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, displayMonths)
@@ -298,7 +248,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // LOGIC CHỌN THÁNG MẶC ĐỊNH ĐÃ ĐƯỢC CẢI THIỆN
         selectDefaultMonthFromSnapshot(historySnapshot)
     }
 
@@ -311,7 +260,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         val previousMonthKey = monthKeyFormat.format(prevCalendar.time)
 
         if (monthKeys.contains(previousMonthKey)) {
-            // Kiểm tra dữ liệu tháng trước từ cached snapshot
             val prevMonthDates = historySnapshot.children
                 .mapNotNull { it.key }
                 .filter { it.startsWith(previousMonthKey) }
@@ -332,11 +280,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 val prevWater = lastWater - firstWater
                 val prevTotalCost = prevElectric * 3300 + prevWater * 15000
 
-                // Kiểm tra trạng thái thanh toán tháng trước
                 userRoomNumber?.let { roomNumber ->
                     val listener = object : ValueEventListener {
                         override fun onDataChange(paymentSnapshot: DataSnapshot) {
-                            // Kiểm tra fragment vẫn còn active
                             if (_binding == null || !isAdded) return
 
                             val isPreviousMonthPaid = paymentSnapshot.exists() &&
@@ -351,21 +297,17 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                                 if (monthKeys.contains(currentMonthKey)) {
                                     val idx = monthKeys.indexOf(currentMonthKey)
                                     binding.spnMonthPicker.setSelection(idx)
-                                    Log.d(TAG, "Chuyển sang tháng hiện tại vì tháng trước đã thanh toán hoặc không có dữ liệu")
                                 } else {
                                     binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                                    Log.d(TAG, "Không có tháng hiện tại, chọn tháng cuối cùng")
                                 }
                             } else {
                                 val idx = monthKeys.indexOf(previousMonthKey)
                                 binding.spnMonthPicker.setSelection(idx)
-                                Log.d(TAG, "Hiển thị tháng trước vì chưa thanh toán và có phát sinh chi phí")
                             }
                         }
 
                         override fun onCancelled(error: DatabaseError) {
                             if (_binding != null && isAdded) {
-                                Log.e(TAG, "Lỗi kiểm tra trạng thái thanh toán: ${error.message}")
                                 if (monthKeys.contains(currentMonthKey)) {
                                     val idx = monthKeys.indexOf(currentMonthKey)
                                     binding.spnMonthPicker.setSelection(idx)
@@ -378,32 +320,26 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         .addListenerForSingleValueEvent(listener)
                 }
             } else {
-                // Không đủ dữ liệu tháng trước, chuyển sang tháng hiện tại
                 if (_binding != null && isAdded) {
                     if (monthKeys.contains(currentMonthKey)) {
                         val idx = monthKeys.indexOf(currentMonthKey)
                         binding.spnMonthPicker.setSelection(idx)
-                        Log.d(TAG, "Chuyển sang tháng hiện tại vì tháng trước không đủ dữ liệu")
                     } else {
                         binding.spnMonthPicker.setSelection(monthKeys.size - 1)
                     }
                 }
             }
         } else {
-            // Không có tháng trước, chọn tháng hiện tại hoặc tháng mới nhất
             if (_binding != null && isAdded) {
                 if (monthKeys.contains(currentMonthKey)) {
                     val idx = monthKeys.indexOf(currentMonthKey)
                     binding.spnMonthPicker.setSelection(idx)
-                    Log.d(TAG, "Hiển thị tháng hiện tại mặc định")
                 } else {
                     binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                    Log.d(TAG, "Hiển thị tháng mới nhất vì không có tháng hiện tại")
                 }
             }
         }
     }
-
 
     private fun setupPaymentStatusListener() {
         userRoomNumber?.let { roomNumber ->
@@ -425,7 +361,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun updateUIBasedOnMonth() {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         if (selectedMonth.isNotBlank()) {
@@ -442,20 +377,15 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         userRoomNumber?.let { roomNumber ->
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    // Kiểm tra fragment vẫn còn active
                     if (_binding == null || !isAdded) return
 
-                    // Validation: Kiểm tra selectedMonth có hợp lệ không
                     if (selectedMonth.isBlank() || !selectedMonth.matches(Regex("\\d{4}-\\d{2}"))) {
-                        Log.e(TAG, "Invalid selectedMonth: '$selectedMonth'")
                         return
                     }
 
-                    // Logic mới: sử dụng calculateMonthlyConsumption
                     val prevMonth = Calendar.getInstance().apply {
                         val parts = selectedMonth.split("-")
                         if (parts.size < 2) {
-                            Log.e(TAG, "Invalid selectedMonth format: '$selectedMonth'")
                             return@apply
                         }
                         try {
@@ -463,17 +393,14 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                             set(Calendar.MONTH, parts[1].toInt() - 1)
                             add(Calendar.MONTH, -1)
                         } catch (e: NumberFormatException) {
-                            Log.e(TAG, "Error parsing selectedMonth: '$selectedMonth'", e)
                             return@apply
                         }
                     }
                     val prevMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(prevMonth.time)
                     
-                    // Lấy dữ liệu tháng hiện tại và tháng trước
                     val currentMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
                     val prevMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
                     
-                    // Thu thập dữ liệu từ snapshot
                     for (dateSnapshot in snapshot.children) {
                         val dateKey = dateSnapshot.key ?: continue
                         val electric = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
@@ -489,10 +416,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         }
                     }
                     
-                    Log.d(TAG, "Current month data: $currentMonthData")
-                    Log.d(TAG, "Previous month data: $prevMonthData")
-                    
-                    // Tính consumption bằng method mới
                     val usedElectric = calculateMonthlyConsumption(currentMonthData, prevMonthData, true)
                     val usedWater = calculateMonthlyConsumption(currentMonthData, prevMonthData, false)
                     
@@ -504,7 +427,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     if (usedElectric == 0 && usedWater == 0 && total == 0) {
                         val linearLayout = binding.cardPaymentStatus.getChildAt(0) as LinearLayout
                         linearLayout.background = ContextCompat.getDrawable(requireContext(), R.drawable.gradient_green)
-                        binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_check_circle)
+                        binding.tvPaymentStatus.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_check_circle, 0, 0, 0)
                         binding.tvPaymentStatus.text = getString(R.string.payment_no_need_month, getDisplayMonth())
                         binding.tvNote.text = getString(R.string.payment_no_cost_note)
                         binding.btnPayNow.isEnabled = false
@@ -514,7 +437,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         updateCalculationTitle(isCurrentMonth)
                     } else {
                         checkSelectedMonthPaymentStatus { isPaid ->
-                            // Kiểm tra fragment vẫn còn active trong callback
                             if (_binding == null || !isAdded) return@checkSelectedMonthPaymentStatus
 
                             if (isCurrentMonth) {
@@ -550,15 +472,8 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
     private fun checkSelectedMonthPaymentStatus(callback: (Boolean) -> Unit) {
         userRoomNumber?.let { roomNumber ->
-            Log.d(TAG, "=== DEBUG PAYMENT STATUS ===")
-            Log.d(TAG, "Room Number: $roomNumber")
-            Log.d(TAG, "Selected Month: $selectedMonth")
-            Log.d(TAG, "Current Month: $currentMonth")
-            Log.d(TAG, "Previous Month: $previousMonth")
-
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    // Kiểm tra fragment vẫn còn active
                     if (_binding == null || !isAdded) {
                         return
                     }
@@ -567,17 +482,11 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     val status = snapshot.child("status").getValue(String::class.java)
                     val isPaid = exists && status == "PAID"
 
-                    Log.d(TAG, "Payment exists: $exists")
-                    Log.d(TAG, "Payment status: $status")
-                    Log.d(TAG, "Is Paid: $isPaid")
-                    Log.d(TAG, "Database path: rooms/$roomNumber/payments/$selectedMonth")
-
                     callback(isPaid)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
                     if (_binding != null && isAdded) {
-                        Log.e(TAG, "Database error: ${error.message}")
                         callback(false)
                     }
                 }
@@ -589,7 +498,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun updatePaymentStatusCard(isPaid: Boolean, isCurrentMonth: Boolean) {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         val linearLayout = binding.cardPaymentStatus.getChildAt(0) as LinearLayout
@@ -598,7 +506,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             linearLayout.background = ContextCompat.getDrawable(
                 requireContext(), R.drawable.gradient_green
             )
-            binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_check_circle)
+            binding.tvPaymentStatus.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_check_circle, 0, 0, 0)
             binding.tvPaymentStatus.text = getString(R.string.payment_paid_month, getDisplayMonth())
             binding.tvNote.text = getString(R.string.payment_paid_note)
         } else {
@@ -606,14 +514,14 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 linearLayout.background = ContextCompat.getDrawable(
                     requireContext(), R.drawable.gradient_orange
                 )
-                binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_pending)
+                binding.tvPaymentStatus.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_pending, 0, 0, 0)
                 binding.tvPaymentStatus.text = getString(R.string.payment_estimate_month, getDisplayMonth())
                 binding.tvNote.text = getString(R.string.payment_estimate_note)
             } else {
                 linearLayout.background = ContextCompat.getDrawable(
                     requireContext(), R.drawable.gradient_red
                 )
-                binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_warning)
+                binding.tvPaymentStatus.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_warning, 0, 0, 0)
                 binding.tvPaymentStatus.text = getString(R.string.payment_unpaid_month, getDisplayMonth())
                 binding.tvNote.text = getString(R.string.payment_unpaid_note)
             }
@@ -621,7 +529,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun updateCalculationTitle(isCurrentMonth: Boolean) {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         val today = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
@@ -634,7 +541,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun updatePaymentButton(isPaid: Boolean, isCurrentMonth: Boolean, isPreviousMonth: Boolean) {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         when {
@@ -668,12 +574,10 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             }
         }
         
-        // QUAN TRỌNG: Đảm bảo alpha = 1.0f sau khi update button state
         hideLoadingState()
     }
 
     private fun updatePaymentNotice(isPaid: Boolean, isCurrentMonth: Boolean, isPreviousMonth: Boolean) {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         when {
@@ -713,29 +617,20 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun loadUsageData() {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         userRoomNumber?.let { roomNumber ->
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    // Kiểm tra fragment vẫn còn active
                     if (_binding == null || !isAdded) return
 
-                    Log.d(TAG, "=== CALCULATING PAYMENT CONSUMPTION ===")
-                    Log.d(TAG, "Selected Month: $selectedMonth")
-
-                    // Validation: Kiểm tra selectedMonth có hợp lệ không
                     if (selectedMonth.isBlank() || !selectedMonth.matches(Regex("\\d{4}-\\d{2}"))) {
-                        Log.e(TAG, "Invalid selectedMonth in loadUsageData: '$selectedMonth'")
                         return
                     }
 
-                    // Logic mới: giống ChartFragment và HomeFragment
                     val prevMonth = Calendar.getInstance().apply {
                         val parts = selectedMonth.split("-")
                         if (parts.size < 2) {
-                            Log.e(TAG, "Invalid selectedMonth format in loadUsageData: '$selectedMonth'")
                             return@apply
                         }
                         try {
@@ -743,17 +638,14 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                             set(Calendar.MONTH, parts[1].toInt() - 1)
                             add(Calendar.MONTH, -1)
                         } catch (e: NumberFormatException) {
-                            Log.e(TAG, "Error parsing selectedMonth in loadUsageData: '$selectedMonth'", e)
                             return@apply
                         }
                     }
                     val prevMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(prevMonth.time)
                     
-                    // Lấy dữ liệu tháng hiện tại và tháng trước
                     val currentMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
                     val prevMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
                     
-                    // Thu thập dữ liệu từ snapshot
                     for (dateSnapshot in snapshot.children) {
                         val dateKey = dateSnapshot.key ?: continue
                         val electric = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
@@ -769,20 +661,13 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         }
                     }
                     
-                    Log.d(TAG, "Current month data: $currentMonthData")
-                    Log.d(TAG, "Previous month data: $prevMonthData")
-                    
-                    // Tính consumption cho điện
                     val usedElectric = calculateMonthlyConsumption(
                         currentMonthData, prevMonthData, true
                     )
                     
-                    // Tính consumption cho nước  
                     val usedWater = calculateMonthlyConsumption(
                         currentMonthData, prevMonthData, false
                     )
-
-                    Log.d(TAG, "Final consumption - Electric: $usedElectric, Water: $usedWater")
 
                     val electricCost = usedElectric * 3300
                     val waterCost = usedWater * 15000
@@ -813,18 +698,11 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         }
     }
     
-    /**
-     * Tính consumption tháng theo logic giống ChartFragment và HomeFragment
-     */
     private fun calculateMonthlyConsumption(
         currentMonthData: Map<String, Pair<Int?, Int?>>,
         prevMonthData: Map<String, Pair<Int?, Int?>>,
         isElectric: Boolean
     ): Int {
-        val type = if (isElectric) "ELECTRIC" else "WATER"
-        Log.d(TAG, "=== Calculating $type consumption ===")
-        
-        // Extract values cho loại cần tính
         val currentValues = currentMonthData.values
             .mapNotNull { if (isElectric) it.first else it.second }
             .sorted()
@@ -833,11 +711,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             .mapNotNull { if (isElectric) it.first else it.second }
             .sorted()
         
-        Log.d(TAG, "$type - Current month values: $currentValues")
-        Log.d(TAG, "$type - Previous month values: $prevValues")
-        
         if (currentValues.isEmpty()) {
-            Log.d(TAG, "$type - No current data, returning 0")
             return 0
         }
         
@@ -845,22 +719,16 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         val prevMonthLastValue = prevValues.lastOrNull()
         
         val result = if (prevMonthLastValue != null) {
-            // Trường hợp bình thường: có dữ liệu tháng trước
-            Log.d(TAG, "$type - Normal case: $currentMaxValue - $prevMonthLastValue = ${currentMaxValue - prevMonthLastValue}")
             currentMaxValue - prevMonthLastValue
         } else {
-            // Trường hợp đặc biệt: không có dữ liệu tháng trước
             val currentMinValue = currentValues.minOrNull() ?: 0
-            Log.d(TAG, "$type - Special case: $currentMaxValue - $currentMinValue = ${currentMaxValue - currentMinValue}")
             currentMaxValue - currentMinValue
         }
         
-        Log.d(TAG, "$type - Final result: $result")
-        return maxOf(0, result) // Đảm bảo không âm
+        return maxOf(0, result)
     }
 
     private fun openPaymentLink() {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         if (userRoomNumber == null) {
@@ -881,11 +749,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         val cancelUrl = "myapp://payment-cancel"
         val returnUrl = "myapp://payment-success"
-
-        Log.d("PAYOS_DEBUG", "=== PAYMENT REQUEST DEBUG ===")
-        Log.d("PAYOS_DEBUG", "Description: '$description' (${description.length} chars)")
-        Log.d("PAYOS_DEBUG", "OrderCode: $orderCode")
-        Log.d("PAYOS_DEBUG", "Amount: $amount")
 
         val dataToSign = "amount=$amount&cancelUrl=$cancelUrl&description=$description&orderCode=$orderCode&returnUrl=$returnUrl"
         val signature = hmacSha256(dataToSign)
@@ -919,7 +782,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         Toast.makeText(requireContext(), "Lỗi kết nối: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-                Log.e("PAYOS_DEBUG", "Failed to create payment link: ${e.message}")
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -962,7 +824,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                                 intent.putExtra("month", selectedMonth)
                                 intent.putExtra("roomNumber", userRoomNumber)
                                 @Suppress("DEPRECATION")
-                                startActivityForResult(intent, PAYMENT_REQUEST_CODE)
+                                startActivityForResult(intent, paymentRequestCode)
                             }
                         }
                     } else {
@@ -988,21 +850,18 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == PAYMENT_REQUEST_CODE) {
+        if (requestCode == paymentRequestCode) {
             when (resultCode) {
                 Activity.RESULT_OK -> {
-                    Log.d(TAG, "Payment successful")
                     refreshPaymentStatus()
                     showSuccessAnimation()
                 }
                 Activity.RESULT_CANCELED -> {
-                    Log.d(TAG, "Payment cancelled")
                     if (_binding != null && isAdded) {
                         Toast.makeText(requireContext(), "Thanh toán đã bị hủy", Toast.LENGTH_SHORT).show()
                     }
                 }
                 else -> {
-                    Log.d(TAG, "Payment result unknown: $resultCode")
                     if (_binding != null && isAdded) {
                         Toast.makeText(requireContext(), "Kết quả thanh toán không xác định", Toast.LENGTH_SHORT).show()
                     }
@@ -1012,7 +871,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun showSuccessAnimation() {
-        // Kiểm tra fragment vẫn còn active
         if (_binding == null || !isAdded) return
 
         binding.cardPaymentStatus.animate()

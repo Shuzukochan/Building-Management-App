@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavController
@@ -26,16 +25,11 @@ class MainActivity : AppCompatActivity() {
     private var auth: FirebaseAuth? = null
     private var navController: NavController? = null
 
-    companion object {
-        private const val TAG = "MainActivity"
-        private const val FCM_PREFS = "fcm_prefs"
-        private const val FCM_TOKEN_KEY = "fcm_token"
-
-        // Notification types constants
-        private const val NOTIFICATION_TYPE_MAINTENANCE = "maintenance_request"
-        private const val NOTIFICATION_TYPE_PAYMENT = "payment_reminder"
-        private const val NOTIFICATION_TYPE_ANNOUNCEMENT = "announcement"
-    }
+    private val fcmPrefs = "fcm_prefs"
+    private val fcmTokenKey = "fcm_token"
+    private val notificationTypeMaintenance = "maintenance_request"
+    private val notificationTypePayment = "payment_reminder"
+    private val notificationTypeAnnouncement = "announcement"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,34 +43,18 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         setupNavigation()
         setupBottomNavigation()
-
-        // PRELOAD USER DATA để fragments load nhanh hơn
         preloadUserData()
-
-        // Handle notification intent if any
         handleNotificationIntent()
     }
 
     private fun checkAuthenticationState(): Boolean {
-        Log.d(TAG, "=== CHECKING AUTHENTICATION STATE ===")
-        
         val currentUser = auth?.currentUser
         
-        Log.d(TAG, "Firebase Auth instance: ${auth != null}")
-        Log.d(TAG, "Current user object: $currentUser")
-        Log.d(TAG, "User phone: ${currentUser?.phoneNumber}")
-        Log.d(TAG, "User UID: ${currentUser?.uid}")
-        Log.d(TAG, "Is user anonymous: ${currentUser?.isAnonymous}")
-        
         if (currentUser == null) {
-            Log.w(TAG, "❌ User not authenticated - redirecting to SignIn")
-            Log.d(TAG, "=== AUTHENTICATION CHECK FAILED ===")
             redirectToSignIn()
             return false
         }
 
-        Log.d(TAG, "✅ User authenticated: ${currentUser.phoneNumber}")
-        Log.d(TAG, "=== AUTHENTICATION CHECK PASSED ===")
         return true
     }
 
@@ -94,7 +72,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         } catch (e: Exception) {
-            Log.e(TAG, "Error redirecting to SignIn", e)
             finish()
         }
     }
@@ -104,14 +81,11 @@ class MainActivity : AppCompatActivity() {
             val navHostFragment = supportFragmentManager
                 .findFragmentById(R.id.mainFragmentContainer) as? NavHostFragment
 
-            if (navHostFragment != null) {
-                navController = navHostFragment.navController
-                Log.d(TAG, "Navigation setup successful")
-            } else {
-                Log.e(TAG, "NavHostFragment not found")
+            navHostFragment?.let {
+                navController = it.navController
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error setting up navigation", e)
+            // Handle error silently
         }
     }
 
@@ -122,75 +96,54 @@ class MainActivity : AppCompatActivity() {
 
             if (bottomNav != null && controller != null) {
                 bottomNav.setupWithNavController(controller)
-                Log.d(TAG, "Bottom navigation setup successful")
-            } else {
-                Log.e(TAG, "Bottom navigation setup failed - missing components")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error setting up bottom navigation", e)
+            // Handle error silently
         }
     }
 
     private fun handleNotificationIntent() {
         try {
-            val extras = intent.extras
-            if (extras == null) {
-                Log.d(TAG, "No notification extras found")
-                return
-            }
+            val extras = intent.extras ?: return
 
-            val notificationData = extras.getBundle("notification_data")
-            if (notificationData == null) {
-                Log.d(TAG, "No notification_data bundle found")
-                return
-            }
+            val notificationData = extras.getBundle("notification_data") ?: return
 
             val type = notificationData.getString("type")
-            Log.d(TAG, "Processing notification with type: $type")
 
             when (type) {
-                NOTIFICATION_TYPE_MAINTENANCE -> {
-                    Log.d(TAG, "Handling maintenance notification")
+                notificationTypeMaintenance -> {
                     navigateToMaintenanceScreen()
                 }
-                NOTIFICATION_TYPE_PAYMENT -> {
-                    Log.d(TAG, "Handling payment notification")
+                notificationTypePayment -> {
                     navigateToPaymentScreen()
                 }
-                NOTIFICATION_TYPE_ANNOUNCEMENT -> {
-                    Log.d(TAG, "Handling announcement notification")
+                notificationTypeAnnouncement -> {
                     navigateToAnnouncementScreen()
-                }
-                else -> {
-                    Log.w(TAG, "Unknown notification type: $type")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error handling notification intent", e)
+            // Handle error silently
         }
     }
 
     private fun navigateToMaintenanceScreen() {
         try {
-            Log.d(TAG, "Navigate to maintenance screen - TODO: Implement")
         } catch (e: Exception) {
-            Log.e(TAG, "Error navigating to maintenance screen", e)
+            // Handle error silently
         }
     }
 
     private fun navigateToPaymentScreen() {
         try {
-            Log.d(TAG, "Navigate to payment screen - TODO: Implement")
         } catch (e: Exception) {
-            Log.e(TAG, "Error navigating to payment screen", e)
+            // Handle error silently
         }
     }
 
     private fun navigateToAnnouncementScreen() {
         try {
-            Log.d(TAG, "Navigate to announcement screen - TODO: Implement")
         } catch (e: Exception) {
-            Log.e(TAG, "Error navigating to announcement screen", e)
+            // Handle error silently
         }
     }
 
@@ -204,7 +157,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (auth?.currentUser == null) {
-            Log.w(TAG, "User signed out while app was in background")
             redirectToSignIn()
         }
     }
@@ -215,150 +167,106 @@ class MainActivity : AppCompatActivity() {
             binding = null
             navController = null
             auth = null
-            Log.d(TAG, "MainActivity destroyed and cleaned up")
         } catch (e: Exception) {
-            Log.e(TAG, "Error in onDestroy cleanup", e)
+            // Handle error silently
         }
     }
 
     fun onUserLogout() {
-        Log.d(TAG, "=== MAINACTIVITY: STARTING LOGOUT PROCESS ===")
-        
         try {
             val currentUser = auth?.currentUser
-            if (currentUser != null) {
-                val phone = currentUser.phoneNumber
-                if (phone != null) {
-                    Log.d(TAG, "Cleaning up FCM data for user: ${phone.take(10)}...")
-                    cleanupFCMOnLogout()
-                }
+            currentUser?.phoneNumber?.let {
+                cleanupFCMOnLogout()
             }
 
-            // Clear all SharedPreferences
-            Log.d(TAG, "Clearing all SharedPreferences...")
             clearAllMainActivityPreferences()
-
-            // Sign out from Firebase
-            Log.d(TAG, "Signing out from Firebase Auth...")
             auth?.signOut()
-            
-            // Verify logout
-            Log.d(TAG, "Current user after signOut: ${auth?.currentUser}")
-            
-            Log.d(TAG, "User signed out successfully")
-            Log.d(TAG, "=== MAINACTIVITY: LOGOUT PROCESS COMPLETED ===")
-            
             redirectToSignIn()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error during logout process", e)
             redirectToSignIn()
         }
     }
 
     private fun clearAllMainActivityPreferences() {
         try {
-            // Clear FCM prefs
-            val fcmPrefs = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
+            val fcmPrefs = getSharedPreferences(fcmPrefs, MODE_PRIVATE)
             fcmPrefs.edit().clear().apply()
-            Log.d(TAG, "Cleared FCM preferences")
 
-            // Clear app settings
             val appSettings = getSharedPreferences("app_settings", MODE_PRIVATE)
             appSettings.edit().clear().apply()
-            Log.d(TAG, "Cleared app_settings preferences")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error clearing MainActivity preferences", e)
+            // Handle error silently
         }
     }
 
     private fun cleanupFCMOnLogout() {
         try {
-            // Unsubscribe from FCM topics
             FCMHelper.unsubscribeFromBuildingTopics(null)
 
-            // Clear FCM token from SharedPreferences
-            val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
+            val sharedPref = getSharedPreferences(fcmPrefs, MODE_PRIVATE)
             sharedPref.edit()
-                .remove(FCM_TOKEN_KEY)
+                .remove(fcmTokenKey)
                 .apply()
 
-            Log.d(TAG, "FCM cleanup completed for logout")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up FCM data", e)
+            // Handle error silently
         }
     }
 
     private fun preloadUserData() {
-        Log.d(TAG, "=== PRELOADING USER DATA ===")
-        
         val currentUser = auth?.currentUser
-        val phone = currentUser?.phoneNumber
+        val phone = currentUser?.phoneNumber ?: return
 
-        if (phone != null) {
-            // KIỂM TRA USER CHANGE TRƯỚC
-            com.app.buildingmanagement.data.SharedDataManager.checkAndClearIfUserChanged()
-            
-            // Kiểm tra cache trước
-            val cachedSnapshot = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomSnapshot()
-            val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
+        com.app.buildingmanagement.data.SharedDataManager.checkAndClearIfUserChanged()
+        
+        val cachedSnapshot = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomSnapshot()
+        val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
 
-            if (cachedSnapshot != null && cachedRoomNumber != null) {
-                Log.d(TAG, "User data already cached for room: $cachedRoomNumber")
-                return
-            }
+        if (cachedSnapshot != null && cachedRoomNumber != null) {
+            return
+        }
 
-            // Nếu chưa có cache, preload từ Firebase với timeout
-            Log.d(TAG, "No cached data, preloading from Firebase...")
-            val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
+        val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
 
-            // THÊM TIMEOUT ĐỂ TRÁNH BLOCKING
-            val timeoutHandler = Handler(Looper.getMainLooper())
-            val timeoutRunnable = Runnable {
-                Log.w(TAG, "⏰ Preload timeout - continuing without cache")
-            }
-            timeoutHandler.postDelayed(timeoutRunnable, 10000) // 10 giây timeout
+        val timeoutHandler = Handler(Looper.getMainLooper())
+        val timeoutRunnable = Runnable {
+            // Timeout - continue without cache
+        }
+        timeoutHandler.postDelayed(timeoutRunnable, 10000)
 
-            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    timeoutHandler.removeCallbacks(timeoutRunnable) // Cancel timeout
-                    
-                    // KIỂM TRA LẠI USER TRƯỚC KHI CACHE (tránh race condition)
-                    val currentUserCheck = auth?.currentUser
-                    if (currentUserCheck?.phoneNumber != phone) {
-                        Log.w(TAG, "User changed during preload, discarding result")
-                        return
-                    }
-                    
-                    for (roomSnapshot in snapshot.children) {
-                        val tenantsSnapshot = roomSnapshot.child("tenants")
+        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                timeoutHandler.removeCallbacks(timeoutRunnable)
+                
+                val currentUserCheck = auth?.currentUser
+                if (currentUserCheck?.phoneNumber != phone) {
+                    return
+                }
+                
+                for (roomSnapshot in snapshot.children) {
+                    val tenantsSnapshot = roomSnapshot.child("tenants")
 
-                        for (tenantSnapshot in tenantsSnapshot.children) {
-                            val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
-                            if (phoneInTenant == phone) {
-                                val roomNumber = roomSnapshot.key
-                                if (roomNumber != null) {
-                                    Log.d(TAG, "✅ Preloaded data for room: $roomNumber")
-                                    com.app.buildingmanagement.data.SharedDataManager.setCachedData(
-                                        roomSnapshot, roomNumber, phone
-                                    )
-                                    return
-                                }
+                    for (tenantSnapshot in tenantsSnapshot.children) {
+                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
+                        if (phoneInTenant == phone) {
+                            val roomNumber = roomSnapshot.key
+                            roomNumber?.let {
+                                com.app.buildingmanagement.data.SharedDataManager.setCachedData(
+                                    roomSnapshot, it, phone
+                                )
+                                return
                             }
                         }
                     }
-                    Log.w(TAG, "❌ Could not find user room during preload")
                 }
+            }
 
-                override fun onCancelled(error: DatabaseError) {
-                    timeoutHandler.removeCallbacks(timeoutRunnable) // Cancel timeout
-                    Log.e(TAG, "Error preloading user data: ${error.message}")
-                }
-            })
-        } else {
-            Log.w(TAG, "Cannot preload data - user phone is null")
-        }
+            override fun onCancelled(error: DatabaseError) {
+                timeoutHandler.removeCallbacks(timeoutRunnable)
+                // Handle error silently
+            }
+        })
     }
 }

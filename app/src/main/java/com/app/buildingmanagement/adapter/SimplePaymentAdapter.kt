@@ -15,7 +15,7 @@ class SimplePaymentAdapter(private val paymentList: List<SimplePayment>) :
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvDate: TextView = itemView.findViewById(R.id.tvDate)
         val tvAmount: TextView = itemView.findViewById(R.id.tvAmount)
-        val ivStatus: ImageView = itemView.findViewById(R.id.ivStatus) // Thay đổi từ TextView sang ImageView
+        val ivStatus: ImageView = itemView.findViewById(R.id.ivStatus)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -30,7 +30,6 @@ class SimplePaymentAdapter(private val paymentList: List<SimplePayment>) :
         holder.tvDate.text = payment.getFormattedDate()
         holder.tvAmount.text = payment.getFormattedAmount()
 
-        // Set icon vector theo status
         when (payment.status.uppercase()) {
             "PAID" -> {
                 holder.ivStatus.setImageResource(R.drawable.ic_check_circle)

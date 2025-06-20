@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F8F9FA"
@@ -15,6 +16,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
+
+            <!-- Header Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pay_header_title"
+                    android:textSize="@dimen/home_title_text_size"
+                    android:textStyle="bold"
+                    android:textColor="#1A1A1A" />
+            </LinearLayout>
 
             <!-- Header với chọn tháng -->
             <androidx.cardview.widget.CardView
@@ -33,29 +50,28 @@
                     android:orientation="horizontal"
                     android:padding="@dimen/pay_header_padding">
 
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginEnd="6dp"
-                        android:src="@drawable/ic_calendar" />
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="6dp"
-                        android:text="Chọn tháng:"
+                        android:text="@string/pay_select_month_label"
                         android:textColor="#2E2E2E"
                         android:textSize="@dimen/pay_note_text_size"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:drawablePadding="6dp"
+                        android:gravity="center_vertical"
+                        app:drawableStartCompat="@drawable/ic_calendar" />
 
                     <Spinner
                         android:id="@+id/spnMonthPicker"
                         android:layout_width="0dp"
-                        android:layout_height="32dp"
+                        android:layout_height="38dp"
                         android:layout_weight="1"
                         android:background="@drawable/spinner_background"
+                        android:minHeight="48dp"
                         android:padding="6dp"
-                        android:popupElevation="8dp" />
+                        android:popupElevation="8dp"
+                        tools:ignore="TouchTargetSizeCheck" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -76,40 +92,30 @@
                     android:orientation="vertical"
                     android:padding="@dimen/pay_status_card_padding">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvPaymentStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="6dp"
+                        android:drawablePadding="10dp"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:id="@+id/ivPaymentStatusIcon"
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginEnd="10dp"
-                            android:src="@drawable/ic_pending"
-                            app:tint="#FFFFFF" />
-
-                        <TextView
-                            android:id="@+id/tvPaymentStatus"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Tạm tính tháng"
-                            android:textColor="#FFFFFF"
-                            android:textSize="@dimen/pay_status_text_size"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        android:text="@string/pay_status_default"
+                        android:textColor="#FFFFFF"
+                        android:textSize="@dimen/pay_status_text_size"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_pending"
+                        app:drawableTint="#FFFFFF"
+                        tools:ignore="TextContrastCheck" />
 
                     <TextView
                         android:id="@+id/tvNote"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:lineSpacingExtra="1dp"
-                        android:text="Đây là số liệu tạm tính. Thanh toán vào ngày 01 tháng sau."
+                        android:text="@string/pay_note_default"
                         android:textColor="#E8F5E8"
-                        android:textSize="@dimen/pay_note_text_size" />
+                        android:textSize="@dimen/pay_note_text_size"
+                        tools:ignore="TextContrastCheck" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -130,30 +136,19 @@
                     android:padding="@dimen/pay_card_padding">
 
                     <!-- Header section -->
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvCalculationTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="12dp"
+                        android:text="@string/pay_calculation_title_default"
+                        android:textColor="#2E2E2E"
+                        android:textSize="@dimen/pay_title_text_size"
+                        android:textStyle="bold"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:layout_marginEnd="8dp"
-                            android:src="@drawable/ic_calculator"
-                            app:tint="#FF9800" />
-
-                        <TextView
-                            android:id="@+id/tvCalculationTitle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Tạm tính đến ngày: 08/06/2025"
-                            android:textColor="#2E2E2E"
-                            android:textSize="@dimen/pay_title_text_size"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        app:drawableStartCompat="@drawable/ic_calculator"
+                        android:drawablePadding="8dp"
+                        app:drawableTint="#FF9800" />
 
                     <!-- Chi tiết tiêu thụ -->
                     <LinearLayout
@@ -175,15 +170,17 @@
                                 android:layout_width="18dp"
                                 android:layout_height="18dp"
                                 android:layout_marginEnd="6dp"
-                                android:src="@drawable/ic_electric"
-                                app:tint="#FFC107" />
+                                android:contentDescription="@string/pay_electric_icon_description"
+                                android:src="@drawable/ic_electric_vector"
+                                app:tint="#FFC107"
+                                tools:ignore="ImageContrastCheck" />
 
                             <TextView
                                 android:id="@+id/tvElectricDetail"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Tiêu thụ điện: 1 × 3.300đ"
+                                android:text="@string/pay_electric_detail_default"
                                 android:textColor="#444444"
                                 android:textSize="@dimen/pay_detail_text_size" />
 
@@ -191,7 +188,7 @@
                                 android:id="@+id/tvElectricAmount"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="3.300đ"
+                                android:text="@string/pay_electric_amount_default"
                                 android:textColor="#2E7D32"
                                 android:textSize="@dimen/pay_detail_text_size"
                                 android:textStyle="bold" />
@@ -207,15 +204,17 @@
                                 android:layout_width="18dp"
                                 android:layout_height="18dp"
                                 android:layout_marginEnd="6dp"
-                                android:src="@drawable/ic_water"
-                                app:tint="#2196F3" />
+                                android:contentDescription="@string/pay_water_icon_description"
+                                android:src="@drawable/ic_water_vector"
+                                app:tint="#2196F3"
+                                tools:ignore="ImageContrastCheck" />
 
                             <TextView
                                 android:id="@+id/tvWaterDetail"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Tiêu thụ nước: 0 × 15.000đ"
+                                android:text="@string/pay_water_detail_default"
                                 android:textColor="#444444"
                                 android:textSize="@dimen/pay_detail_text_size" />
 
@@ -223,7 +222,7 @@
                                 android:id="@+id/tvWaterAmount"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0đ"
+                                android:text="@string/pay_water_amount_default"
                                 android:textColor="#2E7D32"
                                 android:textSize="@dimen/pay_detail_text_size"
                                 android:textStyle="bold" />
@@ -248,7 +247,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Tổng cộng:"
+                            android:text="@string/pay_total_label"
                             android:textColor="#666666"
                             android:textSize="@dimen/pay_title_text_size" />
 
@@ -256,7 +255,7 @@
                             android:id="@+id/tvTotalAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="3.300đ"
+                            android:text="@string/pay_total_amount_default"
                             android:textColor="#D32F2F"
                             android:textSize="@dimen/pay_total_text_size"
                             android:textStyle="bold" />
@@ -282,38 +281,27 @@
                     android:orientation="vertical"
                     android:padding="@dimen/pay_card_padding">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvPaymentNoticeTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="6dp"
+                        android:text="@string/pay_notice_title_default"
+                        android:textColor="#E65100"
+                        android:textSize="@dimen/pay_title_text_size"
+                        android:textStyle="bold"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:layout_marginEnd="8dp"
-                            android:src="@drawable/ic_info"
-                            app:tint="#FF9800" />
-
-                        <TextView
-                            android:id="@+id/tvPaymentNoticeTitle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Thông báo"
-                            android:textColor="#E65100"
-                            android:textSize="@dimen/pay_title_text_size"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        app:drawableStartCompat="@drawable/ic_info"
+                        android:drawablePadding="8dp"
+                        app:drawableTint="#FF9800" />
 
                     <TextView
                         android:id="@+id/tvPaymentNoticeContent"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:lineSpacingExtra="1dp"
-                        android:text="Đây là số liệu tạm tính. Thanh toán sẽ được mở vào ngày 01 tháng sau."
-                        android:textColor="#8D6E63"
+                        android:text="@string/pay_notice_content_default"
+                        android:textColor="#795548"
                         android:textSize="@dimen/pay_note_text_size" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -332,15 +320,18 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@color/gray_disabled"
+                    android:clickable="true"
                     android:elevation="0dp"
+                    android:focusable="true"
                     android:paddingVertical="@dimen/pay_button_padding_vertical"
                     android:stateListAnimator="@null"
-                    android:text="⏳ Chưa đến hạn thanh toán"
+                    android:text="@string/pay_button_text_default"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="@dimen/pay_button_text_size"
                     android:textStyle="bold"
-                    app:backgroundTint="@null" />
+                    app:backgroundTint="@null"
+                    tools:ignore="TextContrastCheck" />
             </androidx.cardview.widget.CardView>
 
         </LinearLayout>
@@ -352,7 +343,8 @@
         android:layout_height="match_parent"
         android:background="#80000000"
         android:visibility="gone"
-        android:clickable="true">
+        android:clickable="true"
+        android:focusable="true">
 
         <ProgressBar
             android:id="@+id/progressBarFragment"
@@ -367,7 +359,7 @@
             android:layout_below="@id/progressBarFragment"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="16dp"
-            android:text="Đang tải dữ liệu..."
+            android:text="@string/pay_loading_text"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
     </RelativeLayout>

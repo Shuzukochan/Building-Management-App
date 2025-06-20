@@ -17,35 +17,21 @@
         android:alpha="0.3" />
 
     <!-- Header -->
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_marginBottom="20dp"
+        android:text="@string/payment_history_title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
         android:gravity="center_vertical"
-        android:layout_marginBottom="20dp">
+        app:drawableStartCompat="@drawable/ic_history"
+        android:drawablePadding="12dp"
+        android:contentDescription="@string/payment_history_icon_description" />
 
-        <ImageView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginEnd="12dp"
-            android:src="@drawable/ic_history"
-            android:background="@drawable/circle_background"
-            android:backgroundTint="#E8F5E8"
-            android:padding="6dp"
-            app:tint="#4CAF50" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Lịch sử thanh toán"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/black" />
-    </LinearLayout>
-
-    <!-- Content với scroll - Đảm bảo FrameLayout hiển thị đúng -->
-    <FrameLayout
+    <!-- Content với scroll -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="450dp"
         android:background="#FAFAFA">
@@ -56,23 +42,33 @@
             android:layout_height="match_parent"
             android:scrollbars="vertical"
             android:fadeScrollbars="false"
-            android:background="@android:color/white" />
+            android:background="@android:color/white"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="visible" />
+            android:visibility="visible"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
         <LinearLayout
             android:id="@+id/layoutEmpty"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
             android:orientation="vertical"
             android:gravity="center"
-            android:visibility="gone">
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <ImageView
                 android:layout_width="64dp"
@@ -80,12 +76,13 @@
                 android:layout_marginBottom="16dp"
                 android:src="@drawable/ic_receipt"
                 android:alpha="0.5"
+                android:contentDescription="@string/payment_history_empty_icon_description"
                 app:tint="#CCCCCC" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Chưa có giao dịch nào"
+                android:text="@string/payment_history_no_transactions"
                 android:textSize="16sp"
                 android:textColor="#666666"
                 android:layout_marginBottom="8dp" />
@@ -93,11 +90,11 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Lịch sử thanh toán sẽ hiển thị tại đây"
+                android:text="@string/payment_history_empty_message"
                 android:textSize="14sp"
                 android:textColor="#999999" />
         </LinearLayout>
 
-    </FrameLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>
