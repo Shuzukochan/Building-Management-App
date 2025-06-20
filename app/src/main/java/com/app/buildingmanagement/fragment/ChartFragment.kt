@@ -15,7 +15,6 @@ import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.databinding.FragmentChartBinding
 import com.app.buildingmanagement.dialog.MonthPickerDialog
 import com.app.buildingmanagement.data.SharedDataManager
-import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -467,9 +466,9 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 position = XAxis.XAxisPosition.BOTTOM
                 valueFormatter = IndexAxisValueFormatter(labels)
                 granularity = 1f
-                xAxis.setYOffset(12f)
+                xAxis.yOffset = 12f
                 setDrawGridLines(false)
-                setLabelRotationAngle(0f)
+                labelRotationAngle = 0f
             }
 
             axisLeft.apply {

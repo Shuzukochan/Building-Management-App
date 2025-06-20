@@ -63,12 +63,10 @@ android {
 
 
 dependencies {
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("androidx.webkit:webkit:1.14.0")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-
-
+    implementation(libs.okhttp)
+    implementation(libs.webkit)
+    implementation(libs.coroutines.android)
+    implementation(libs.coroutines.core)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.database.ktx)

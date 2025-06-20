@@ -17,4 +17,42 @@
     <string name="nav_chart_desc">Xem biểu đồ thống kê</string>
     <string name="nav_payment_desc">Quản lý thanh toán</string>
     <string name="nav_settings_desc">Cài đặt ứng dụng</string>
+
+    <!-- HomeFragment strings -->
+    <string name="loading_text">Đang tải...</string>
+    <string name="loading_value_kwh">-- kWh</string>
+    <string name="loading_value_m3">-- m³</string>
+    <string name="error_connection">Lỗi kết nối</string>
+    <string name="value_kwh">%d kWh</string>
+    <string name="value_m3">%d m³</string>
+    <string name="room_number">Phòng %s</string>
+    <string name="room_na">Phòng N/A</string>
+    <string name="zero_kwh">0 kWh</string>
+    <string name="zero_m3">0 m³</string>
+
+    <!-- PayFragment strings -->
+    <string name="payment_no_need_month">Không cần thanh toán tháng %s</string>
+    <string name="payment_no_cost_note">Tháng này không phát sinh chi phí.</string>
+    <string name="payment_no_need_button">✅ Không cần thanh toán</string>
+    <string name="payment_paid_month">Đã thanh toán tháng %s</string>
+    <string name="payment_paid_note">Cảm ơn bạn đã thanh toán đúng hạn!</string>
+    <string name="payment_estimate_month">Tạm tính tháng %s</string>
+    <string name="payment_estimate_note">Đây là số liệu tạm tính. Thanh toán vào ngày 01 tháng sau.</string>
+    <string name="payment_unpaid_month">Chưa thanh toán tháng %s</string>
+    <string name="payment_unpaid_note">Vui lòng thanh toán để tránh bị cắt dịch vụ.</string>
+    <string name="payment_calculation_estimate">Tạm tính đến ngày: %s</string>
+    <string name="payment_calculation_detail">Chi tiết tháng %s</string>
+    <string name="payment_button_paid">✅ Đã thanh toán</string>
+    <string name="payment_button_not_due">⏳ Chưa đến hạn thanh toán</string>
+    <string name="payment_button_confirm">💳 Xác nhận thanh toán</string>
+    <string name="payment_button_overdue">❌ Quá hạn thanh toán</string>
+    <string name="payment_notice_title_info">Thông báo</string>
+    <string name="payment_notice_content_estimate">Đây là số liệu tạm tính. Thanh toán sẽ được mở vào ngày 01 tháng sau.</string>
+    <string name="payment_notice_title_need">Cần thanh toán</string>
+    <string name="payment_notice_content_need">Vui lòng thanh toán để tránh bị ngắt dịch vụ điện nước.</string>
+    <string name="payment_notice_title_overdue">Quá hạn</string>
+    <string name="payment_notice_content_overdue">Hóa đơn này đã quá hạn thanh toán. Vui lòng liên hệ quản lý.</string>
+    <string name="payment_electric_detail">Tiêu thụ điện: %d × 3.300đ</string>
+    <string name="payment_water_detail">Tiêu thụ nước: %d × 15.000đ</string>
+    <string name="payment_amount_format">%sđ</string>
 </resources>

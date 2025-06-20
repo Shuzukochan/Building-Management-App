@@ -34,7 +34,7 @@ class FCMHelper {
         /**
          * Đăng ký để nhận thông báo theo chủ đề
          */
-        fun subscribeToTopic(topic: String) {
+        private fun subscribeToTopic(topic: String) {
             FirebaseMessaging.getInstance().subscribeToTopic(topic)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
@@ -48,7 +48,7 @@ class FCMHelper {
         /**
          * Hủy đăng ký từ một chủ đề
          */
-        fun unsubscribeFromTopic(topic: String) {
+        private fun unsubscribeFromTopic(topic: String) {
             FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {

@@ -49,15 +49,6 @@ object SharedDataManager {
         return cachedUserRoomNumber
     }
 
-    fun getCachedUserPhone(): String? {
-        // KIỂM TRA USER HIỆN TẠI TRƯỚC KHI TRẢ CACHE
-        if (!isCurrentUserValid()) {
-            Log.w(TAG, "Current user changed, clearing cache")
-            clearCache()
-            return null
-        }
-        return cachedUserPhone
-    }
 
     // THÊM METHOD ĐỂ KIỂM TRA USER HIỆN TẠI
     private fun isCurrentUserValid(): Boolean {
@@ -163,19 +154,12 @@ object SharedDataManager {
         Log.d(TAG, "Cache cleared")
     }
 
-    fun isCacheValid(): Boolean {
+    private fun isCacheValid(): Boolean {
         return isCurrentUserValid() && 
                System.currentTimeMillis() - lastUpdateTime < CACHE_DURATION &&
                cachedRoomSnapshot != null &&
                cachedUserRoomNumber != null
     }
-
-    // THÊM METHOD ĐỂ FORCE REFRESH CACHE
-    fun refreshCache() {
-        lastUpdateTime = 0
-        Log.d(TAG, "Cache refresh requested")
-    }
-    
     // THÊM METHOD ĐỂ CHECK USER CHANGE
     fun checkAndClearIfUserChanged() {
         if (!isCurrentUserValid()) {

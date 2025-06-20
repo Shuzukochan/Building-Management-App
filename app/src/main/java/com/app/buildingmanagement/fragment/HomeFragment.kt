@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.app.buildingmanagement.R
 import com.app.buildingmanagement.databinding.FragmentHomeBinding
 import com.app.buildingmanagement.firebase.FCMHelper
 import com.app.buildingmanagement.data.SharedDataManager
@@ -76,11 +77,11 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
         Log.d(TAG, "Showing loading state...")
         
         // Hiển thị skeleton loading thay vì dữ liệu mặc định
-        binding.tvRoomNumber.text = "Đang tải..."
-        binding.tvElectric.text = "-- kWh"
-        binding.tvWater.text = "-- m³"
-        binding.tvElectricUsed.text = "-- kWh"
-        binding.tvWaterUsed.text = "-- m³"
+        binding.tvRoomNumber.text = getString(R.string.loading_text)
+        binding.tvElectric.text = getString(R.string.loading_value_kwh)
+        binding.tvWater.text = getString(R.string.loading_value_m3)
+        binding.tvElectricUsed.text = getString(R.string.loading_value_kwh)
+        binding.tvWaterUsed.text = getString(R.string.loading_value_m3)
         
         // Có thể thêm shimmer effect hoặc progress indicator ở đây
         binding.tvRoomNumber.alpha = 0.6f
@@ -129,11 +130,11 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun showErrorState() {
-        binding.tvRoomNumber.text = "Lỗi kết nối"
-        binding.tvElectric.text = "0 kWh"
-        binding.tvWater.text = "0 m³"
-        binding.tvElectricUsed.text = "0 kWh"
-        binding.tvWaterUsed.text = "0 m³"
+        binding.tvRoomNumber.text = getString(R.string.error_connection)
+        binding.tvElectric.text = getString(R.string.zero_kwh)
+        binding.tvWater.text = getString(R.string.zero_m3)
+        binding.tvElectricUsed.text = getString(R.string.zero_kwh)
+        binding.tvWaterUsed.text = getString(R.string.zero_m3)
     }
 
     private fun processDataSnapshot(snapshot: DataSnapshot, fromCache: Boolean) {
@@ -388,15 +389,28 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
         Log.d(TAG, "Updating UI for room: $roomNumber (fromCache: $fromCache)")
         
         // Cập nhật số phòng
-        binding.tvRoomNumber.text = if (roomNumber != null) "Phòng $roomNumber" else "Phòng N/A"
+        binding.tvRoomNumber.text = if (roomNumber != null) {
+            getString(R.string.room_number, roomNumber)
+        } else {
+            getString(R.string.room_na)
+        }
 
         // Cập nhật chỉ số hiện tại
-        binding.tvElectric.text = if (latestElectric != -1) "$latestElectric kWh" else "0 kWh"
-        binding.tvWater.text = if (latestWater != -1) "$latestWater m³" else "0 m³"
+        binding.tvElectric.text = if (latestElectric != -1) {
+            getString(R.string.value_kwh, latestElectric)
+        } else {
+            getString(R.string.zero_kwh)
+        }
+        
+        binding.tvWater.text = if (latestWater != -1) {
+            getString(R.string.value_m3, latestWater)
+        } else {
+            getString(R.string.zero_m3)
+        }
 
         // Cập nhật tiêu thụ tháng hiện tại
-        binding.tvElectricUsed.text = "$electricUsed kWh"
-        binding.tvWaterUsed.text = "$waterUsed m³"
+        binding.tvElectricUsed.text = getString(R.string.value_kwh, electricUsed)
+        binding.tvWaterUsed.text = getString(R.string.value_m3, waterUsed)
         
         // Log để debug
         val dataSource = if (fromCache) "CACHE" else "FIREBASE"
@@ -422,44 +436,5 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
         super.onDestroy()
         // Ensure cleanup
         SharedDataManager.removeListener(this)
-    }
-
-    // Method để refresh FCM token nếu cần
-    fun refreshFCMToken() {
-        fcmTokenSent = false
-        val phone = auth.currentUser?.phoneNumber
-        if (phone != null) {
-            // Trigger lại việc gửi token
-            roomsRef?.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    // Duyệt qua tất cả các phòng
-                    for (roomSnapshot in snapshot.children) {
-                        val tenantsSnapshot = roomSnapshot.child("tenants")
-                        var phoneFound = false
-
-                        // Duyệt qua tất cả các thành viên trong phòng
-                        for (tenantSnapshot in tenantsSnapshot.children) {
-                            val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
-                            if (phoneInTenant == phone) {
-                                phoneFound = true
-                                val roomNumber = roomSnapshot.key
-                                if (roomNumber != null) {
-                                    sendFCMTokenToFirebase(roomNumber)
-                                }
-                                break
-                            }
-                        }
-
-                        if (phoneFound) {
-                            break // Thoát khỏi vòng lặp rooms khi đã tìm thấy
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e(TAG, "Error refreshing FCM token", error.toException())
-                }
-            })
-        }
     }
 }
