@@ -491,6 +491,9 @@ class MainActivity : AppCompatActivity() {
         val phone = currentUser?.phoneNumber
 
         if (phone != null) {
+            // KIỂM TRA USER CHANGE TRƯỚC
+            com.app.buildingmanagement.data.SharedDataManager.checkAndClearIfUserChanged()
+            
             // Kiểm tra cache trước
             val cachedSnapshot = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomSnapshot()
             val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
@@ -500,12 +503,28 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            // Nếu chưa có cache, preload từ Firebase
+            // Nếu chưa có cache, preload từ Firebase với timeout
             Log.d(TAG, "No cached data, preloading from Firebase...")
             val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
 
+            // THÊM TIMEOUT ĐỂ TRÁNH BLOCKING
+            val timeoutHandler = Handler(Looper.getMainLooper())
+            val timeoutRunnable = Runnable {
+                Log.w(TAG, "⏰ Preload timeout - continuing without cache")
+            }
+            timeoutHandler.postDelayed(timeoutRunnable, 10000) // 10 giây timeout
+
             roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
+                    timeoutHandler.removeCallbacks(timeoutRunnable) // Cancel timeout
+                    
+                    // KIỂM TRA LẠI USER TRƯỚC KHI CACHE (tránh race condition)
+                    val currentUserCheck = auth?.currentUser
+                    if (currentUserCheck?.phoneNumber != phone) {
+                        Log.w(TAG, "User changed during preload, discarding result")
+                        return
+                    }
+                    
                     for (roomSnapshot in snapshot.children) {
                         val tenantsSnapshot = roomSnapshot.child("tenants")
 
@@ -527,6 +546,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onCancelled(error: DatabaseError) {
+                    timeoutHandler.removeCallbacks(timeoutRunnable) // Cancel timeout
                     Log.e(TAG, "Error preloading user data: ${error.message}")
                 }
             })

@@ -214,6 +214,10 @@ class SignInActivity : BaseActivity() {
     }
 
     private fun goToMain() {
+        // CLEAR CACHE KHI LOGIN ĐỂ TRÁNH CONFLICT GIỮA CÁC USER
+        Log.d("SignInActivity", "Clearing cache before going to MainActivity")
+        com.app.buildingmanagement.data.SharedDataManager.clearCache()
+        
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }

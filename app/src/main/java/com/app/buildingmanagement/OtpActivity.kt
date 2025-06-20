@@ -173,6 +173,11 @@ class OtpActivity : BaseActivity() {
         if (isFinishing) return
 
         Log.d("OTP", "Navigating to main activity")
+        
+        // CLEAR CACHE KHI LOGIN ĐỂ TRÁNH CONFLICT GIỮA CÁC USER
+        Log.d("OTP", "Clearing cache before going to MainActivity")
+        com.app.buildingmanagement.data.SharedDataManager.clearCache()
+        
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
