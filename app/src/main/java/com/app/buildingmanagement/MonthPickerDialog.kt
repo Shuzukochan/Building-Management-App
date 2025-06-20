@@ -1,20 +1,17 @@
-package com.app.buildingmanagement.dialog
+package com.app.buildingmanagement
 
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.view.animation.AnimationUtils
 import android.widget.*
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.app.buildingmanagement.R
 import com.google.android.material.color.MaterialColors
+import java.util.Locale
 
 class MonthPickerDialog(
     private val context: Context,
@@ -25,9 +22,18 @@ class MonthPickerDialog(
 
     private lateinit var dialog: AlertDialog
     private val months = listOf(
-        "Th1", "Th2", "Th3", "Th4",
-        "Th5", "Th6", "Th7", "Th8",
-        "Th9", "Th10", "Th11", "Th12"
+        context.getString(R.string.month_jan),
+        context.getString(R.string.month_feb),
+        context.getString(R.string.month_mar),
+        context.getString(R.string.month_apr),
+        context.getString(R.string.month_may),
+        context.getString(R.string.month_jun),
+        context.getString(R.string.month_jul),
+        context.getString(R.string.month_aug),
+        context.getString(R.string.month_sep),
+        context.getString(R.string.month_oct),
+        context.getString(R.string.month_nov),
+        context.getString(R.string.month_dec)
     )
 
     fun show() {
@@ -49,8 +55,8 @@ class MonthPickerDialog(
         var currentViewYear = selectedYear
 
         fun updateHeader() {
-            txtYear.text = currentViewYear.toString()
-            titleText.text = "Tháng ${selectedMonth + 1} năm $selectedYear"
+            txtYear.text = String.format(Locale.getDefault(), "%d", currentViewYear)
+            titleText.text = context.getString(R.string.month_year_title, selectedMonth + 1, selectedYear)
         }
 
         fun updateMonthAdapter() {
@@ -90,13 +96,13 @@ class MonthPickerDialog(
 
         btnPrev.setOnClickListener {
             currentViewYear--
-            txtYear.text = currentViewYear.toString()
+            txtYear.text = String.format(Locale.getDefault(), "%d", currentViewYear)
             animateRecycler("right")
         }
 
         btnNext.setOnClickListener {
             currentViewYear++
-            txtYear.text = currentViewYear.toString()
+            txtYear.text = String.format(Locale.getDefault(), "%d", currentViewYear)
             animateRecycler("left")
         }
 

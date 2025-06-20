@@ -1,9 +1,11 @@
 package com.app.buildingmanagement.fragment
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -45,6 +48,9 @@ class SettingsFragment : Fragment() {
     private var currentRoomNumber: String? = null
     private var currentUserName: String? = null
 
+    // Notification permission launcher
+    private lateinit var notificationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
+
     companion object {
         private const val TAG = "SettingsFragment"
     }
@@ -55,10 +61,18 @@ class SettingsFragment : Fragment() {
     ): View {
         binding = FragmentSettingsBinding.inflate(inflater, container, false)
         auth = FirebaseAuth.getInstance()
+        
+        // Khởi tạo notification permission launcher  
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            handleNotificationPermissionResult(isGranted)
+        }
+        
         val user = auth.currentUser
         val phone = user?.phoneNumber
 
-        binding?.tvPhoneNumber?.text = phone?.replace("+84", "0") ?: "Chưa có số điện thoại"
+        binding?.tvPhoneNumber?.text = phone?.replace("+84", "0") ?: getString(R.string.no_phone_number)
 
         // Kiểm tra cache trước
         val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
@@ -67,7 +81,7 @@ class SettingsFragment : Fragment() {
         if (cachedRoomNumber != null && cachedSnapshot != null) {
             Log.d(TAG, "Using cached data: $cachedRoomNumber")
             currentRoomNumber = cachedRoomNumber
-            binding?.tvRoomNumber?.text = "Phòng $cachedRoomNumber"
+            binding?.tvRoomNumber?.text = getString(R.string.room_prefix, cachedRoomNumber)
 
             // Tìm tên user từ cached data
             loadUserNameFromSnapshot(cachedSnapshot, phone)
@@ -79,8 +93,8 @@ class SettingsFragment : Fragment() {
             Log.d(TAG, "No cache, loading from Firebase")
             loadUserDataFromFirebase(phone)
         } else {
-            binding?.tvRoomNumber?.text = "Không xác định"
-            binding?.tvUserName?.text = "Không xác định"
+            binding?.tvRoomNumber?.text = getString(R.string.room_unknown)
+            binding?.tvUserName?.text = getString(R.string.user_unknown)
             currentRoomNumber = null
             currentUserName = null
         }
@@ -101,7 +115,7 @@ class SettingsFragment : Fragment() {
         }
 
         binding?.btnSupport?.setOnClickListener {
-            openDialer("0398103352")
+            openDialer(getString(R.string.support_phone_number))
         }
 
         binding?.btnAbout?.setOnClickListener {
@@ -113,25 +127,25 @@ class SettingsFragment : Fragment() {
 
     private fun loadUserNameFromSnapshot(roomSnapshot: DataSnapshot, phone: String?) {
         if (phone == null) {
-            binding?.tvUserName?.text = "Không xác định"
+            binding?.tvUserName?.text = getString(R.string.user_unknown)
             return
         }
 
-        val tenantsSnapshot = roomSnapshot.child("tenants")
+        val tenantsSnapshot = roomSnapshot.child(getString(R.string.db_tenants))
 
         // Duyệt qua tất cả các thành viên trong phòng
         for (tenantSnapshot in tenantsSnapshot.children) {
-            val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
+            val phoneInTenant = tenantSnapshot.child(getString(R.string.db_phone)).getValue(String::class.java)
             if (phoneInTenant == phone) {
-                val userName = tenantSnapshot.child("name").getValue(String::class.java)
+                val userName = tenantSnapshot.child(getString(R.string.db_name)).getValue(String::class.java)
                 currentUserName = userName
-                binding?.tvUserName?.text = userName ?: "Chưa có tên"
+                binding?.tvUserName?.text = userName ?: getString(R.string.user_no_name)
                 Log.d(TAG, "Found user name from cache: $userName")
                 return
             }
         }
 
-        binding?.tvUserName?.text = "Không tìm thấy"
+        binding?.tvUserName?.text = getString(R.string.user_not_found)
         Log.w(TAG, "User name not found in cached data")
     }
 
@@ -140,25 +154,13 @@ class SettingsFragment : Fragment() {
      * MainActivity sẽ handle các case khác
      */
     private fun setupInitialNotificationStateIfNeeded() {
-        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-
-        if (!sharedPref.contains("notifications_enabled")) {
-            // TRƯỜNG HỢP HIẾM KHI MAINACTIVITY CHƯA HANDLE - BACKUP
-            Log.d(TAG, "MainActivity missed first time setup - handling here")
-            sharedPref.edit().putBoolean("notifications_enabled", true).apply()
-            FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
-        } else {
-            // ĐÃ CÓ SETTING - MAINACTIVITY ĐÃ HANDLE RỒI
-            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-            Log.d(TAG, "Setting already exists: notifications_enabled = $notificationsEnabled (handled by MainActivity)")
-        }
+        // Không cần setup gì đặc biệt - switch sẽ sync với setting hiện tại
+        Log.d(TAG, "Notification switch will be synced with current settings")
     }
 
     private fun setupNotificationSwitch() {
-        // Set initial state từ SharedPreferences
-        val sharedPref = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-        binding?.switchNotifications?.isChecked = notificationsEnabled
+        // SYNC VỚI SYSTEM PERMISSION TRƯỚC KHI SET STATE
+        syncNotificationSwitchWithSystemPermission()
 
         // Handle layout click
         binding?.layoutNotifications?.setOnClickListener {
@@ -168,45 +170,155 @@ class SettingsFragment : Fragment() {
         // Handle switch toggle - XỬ LÝ FCM TOPICS
         binding?.switchNotifications?.setOnCheckedChangeListener { _, isChecked ->
             // Lưu preference
-            sharedPref.edit().putBoolean("notifications_enabled", isChecked).apply()
+            val sharedPref = requireActivity().getSharedPreferences(getString(R.string.pref_app_settings), Context.MODE_PRIVATE)
+            sharedPref.edit().putBoolean(getString(R.string.pref_notifications_enabled), isChecked).apply()
 
             // XỬ LÝ FCM TOPIC SUBSCRIPTION
             handleNotificationSubscription(isChecked)
 
-            val message = if (isChecked) "Đã bật thông báo" else "Đã tắt thông báo"
+            val message = if (isChecked) getString(R.string.notification_enabled) else getString(R.string.notification_disabled)
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
     }
 
     /**
-     * XỬ LÝ SUBSCRIBE/UNSUBSCRIBE FCM TOPICS
+     * SYNC NOTIFICATION SWITCH VỚI SYSTEM PERMISSION
+     */
+    private fun syncNotificationSwitchWithSystemPermission() {
+        val sharedPref = requireActivity().getSharedPreferences(getString(R.string.pref_app_settings), Context.MODE_PRIVATE)
+        var userEnabledNotifications = sharedPref.getBoolean(getString(R.string.pref_notifications_enabled), true)
+
+        // KIỂM TRA SYSTEM PERMISSION (CHỈ ANDROID ≥ 13)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasSystemPermission = ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            Log.d(TAG, "Syncing switch - User preference: $userEnabledNotifications, System permission: $hasSystemPermission")
+
+            if (!hasSystemPermission && userEnabledNotifications) {
+                // USER ĐÃ TẮT PERMISSION TRONG SYSTEM SETTINGS
+                Log.d(TAG, "System permission revoked - updating user preference to false")
+                userEnabledNotifications = false
+                sharedPref.edit().putBoolean(getString(R.string.pref_notifications_enabled), false).apply()
+
+                // Unsubscribe topics vì không còn permission
+                FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
+                
+                // Hiển thị thông báo cho user
+                Toast.makeText(
+                    requireContext(), 
+                    getString(R.string.notification_permission_revoked_message), 
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        // SET SWITCH STATE THEO KẾT QUẢ CUỐI CÙNG
+        binding?.switchNotifications?.isChecked = userEnabledNotifications
+        Log.d(TAG, "Switch synced to: $userEnabledNotifications")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // SYNC LẠI KHI USER QUAY LẠI TỪ SYSTEM SETTINGS
+        syncNotificationSwitchWithSystemPermission()
+    }
+
+    /**
+     * XỬ LÝ SUBSCRIBE/UNSUBSCRIBE FCM TOPICS VỚI KIỂM TRA PERMISSION
      */
     private fun handleNotificationSubscription(enabled: Boolean) {
         if (enabled) {
-            // BẬT NOTIFICATION: Subscribe lại các topics
-            Log.d(TAG, "Enabling notifications - subscribing to FCM topics...")
-            FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
+            // BẬT NOTIFICATION: Kiểm tra permission trước
+            Log.d(TAG, "Enabling notifications - checking permission first...")
             
-            // Thêm delay nhỏ và force re-subscribe từ MainActivity nếu có thể
-            Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    val mainActivity = activity as? MainActivity
-                    mainActivity?.forceResubscribeNotifications()
-                    Log.d(TAG, "Force re-subscribe triggered from MainActivity")
-                } catch (e: Exception) {
-                    Log.d(TAG, "Could not call MainActivity method: ${e.message}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                when {
+                    ContextCompat.checkSelfPermission(
+                        requireContext(),
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED -> {
+                        // Đã có permission - subscribe ngay
+                        Log.d(TAG, "Permission already granted - subscribing to topics")
+                        FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
+                    }
+                    else -> {
+                        // Chưa có permission - hỏi user
+                        Log.d(TAG, "No permission - requesting notification permission")
+                        showNotificationPermissionExplanation()
+                    }
                 }
-            }, 500)
-            
+            } else {
+                // Android < 13 - không cần permission
+                Log.d(TAG, "Android < 13 - subscribing to topics directly")
+                FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
+            }
         } else {
             // TẮT NOTIFICATION: Unsubscribe khỏi tất cả topics
-            Log.d(TAG, "Disabling notifications - unsubscribing from FCM topics...")
+            Log.d(TAG, "Disabling notifications - unsubscribing from FCM topics for room: $currentRoomNumber")
             FCMHelper.unsubscribeFromBuildingTopics(currentRoomNumber)
         }
     }
 
+    private fun showNotificationPermissionExplanation() {
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.notification_permission_title))
+            .setMessage(getString(R.string.notification_permission_settings_message))
+            .setPositiveButton(getString(R.string.notification_permission_allow)) { _, _ ->
+                requestNotificationPermission()
+            }
+            .setNegativeButton(getString(R.string.notification_permission_deny)) { _, _ ->
+                // User từ chối - tắt switch lại
+                binding?.switchNotifications?.isChecked = false
+                handleNotificationPermissionDenied()
+            }
+            .setCancelable(false)
+            .create()
+        
+        dialog.show()
+        
+        // Đảm bảo màu nút hiển thị rõ ràng
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.nav_selected))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.nav_unselected))
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun handleNotificationPermissionResult(isGranted: Boolean) {
+        if (!isAdded) return
+
+        if (isGranted) {
+            Log.d(TAG, "Notification permission granted in Settings - subscribing to topics")
+            
+            // Permission được cấp - subscribe topics
+            FCMHelper.subscribeToUserBuildingTopics(currentRoomNumber)
+            
+            Toast.makeText(requireContext(), getString(R.string.notification_permission_granted), Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d(TAG, "Notification permission denied in Settings")
+            
+            // Permission bị từ chối - tắt switch
+            binding?.switchNotifications?.isChecked = false
+            handleNotificationPermissionDenied()
+        }
+    }
+
+    private fun handleNotificationPermissionDenied() {
+        // Lưu trạng thái notifications disabled
+        val sharedPref = requireActivity().getSharedPreferences(getString(R.string.pref_app_settings), Context.MODE_PRIVATE)
+        sharedPref.edit().putBoolean(getString(R.string.pref_notifications_enabled), false).apply()
+        
+        Toast.makeText(requireContext(), getString(R.string.notification_permission_denied), Toast.LENGTH_LONG).show()
+    }
+
     private fun loadUserDataFromFirebase(phone: String) {
-        val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
+        val roomsRef = FirebaseDatabase.getInstance().getReference(getString(R.string.db_rooms))
 
         roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -216,15 +328,15 @@ class SettingsFragment : Fragment() {
 
                 // Duyệt qua tất cả các phòng
                 for (roomSnapshot in snapshot.children) {
-                    val tenantsSnapshot = roomSnapshot.child("tenants")
+                    val tenantsSnapshot = roomSnapshot.child(getString(R.string.db_tenants))
 
                     // Duyệt qua tất cả các thành viên trong phòng
                     for (tenantSnapshot in tenantsSnapshot.children) {
-                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
+                        val phoneInTenant = tenantSnapshot.child(getString(R.string.db_phone)).getValue(String::class.java)
                         if (phoneInTenant == phone) {
                             foundRoom = roomSnapshot.key
                             foundRoomSnapshot = roomSnapshot
-                            foundUserName = tenantSnapshot.child("name").getValue(String::class.java)
+                            foundUserName = tenantSnapshot.child(getString(R.string.db_name)).getValue(String::class.java)
 
                             Log.d(TAG, "Found user: $foundUserName in room: $foundRoom")
                             break
@@ -242,16 +354,16 @@ class SettingsFragment : Fragment() {
                 currentRoomNumber = foundRoom
                 currentUserName = foundUserName
 
-                binding?.tvRoomNumber?.text = foundRoom?.let { "Phòng $it" } ?: "Không xác định phòng"
-                binding?.tvUserName?.text = foundUserName ?: "Chưa có tên"
+                binding?.tvRoomNumber?.text = foundRoom?.let { getString(R.string.room_prefix, it) } ?: getString(R.string.room_unknown_full)
+                binding?.tvUserName?.text = foundUserName ?: getString(R.string.user_no_name_full)
 
                 // CHỈ SETUP NẾU LẦN ĐẦU TIÊN
                 setupInitialNotificationStateIfNeeded()
             }
 
             override fun onCancelled(error: DatabaseError) {
-                binding?.tvRoomNumber?.text = "Lỗi kết nối"
-                binding?.tvUserName?.text = "Lỗi kết nối"
+                binding?.tvRoomNumber?.text = getString(R.string.connection_error)
+                binding?.tvUserName?.text = getString(R.string.connection_error)
                 currentRoomNumber = null
                 currentUserName = null
                 Log.e(TAG, "Error loading user data: ${error.message}")
@@ -261,12 +373,12 @@ class SettingsFragment : Fragment() {
 
     private fun showLogoutConfirmation() {
         val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Đăng xuất")
-            .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
-            .setPositiveButton("Đăng xuất") { _, _ ->
+            .setTitle(getString(R.string.logout_title))
+            .setMessage(getString(R.string.logout_message))
+            .setPositiveButton(getString(R.string.logout_button)) { _, _ ->
                 performLogout()
             }
-            .setNegativeButton("Hủy", null)
+            .setNegativeButton(getString(R.string.cancel_button), null)
             .create()
             
         dialog.show()
@@ -340,17 +452,17 @@ class SettingsFragment : Fragment() {
     private fun clearAllSharedPreferences() {
         try {
             // Clear app settings
-            val appSettings = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val appSettings = requireContext().getSharedPreferences(getString(R.string.pref_app_settings), Context.MODE_PRIVATE)
             appSettings.edit().clear().apply()
             Log.d(TAG, "Cleared app_settings")
 
             // Clear app prefs
-            val appPrefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val appPrefs = requireContext().getSharedPreferences(getString(R.string.pref_app_prefs), Context.MODE_PRIVATE)
             appPrefs.edit().clear().apply()
             Log.d(TAG, "Cleared app_prefs")
 
             // Clear FCM prefs
-            val fcmPrefs = requireContext().getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
+            val fcmPrefs = requireContext().getSharedPreferences(getString(R.string.pref_fcm_prefs), Context.MODE_PRIVATE)
             fcmPrefs.edit().clear().apply()
             Log.d(TAG, "Cleared fcm_prefs")
 
@@ -368,10 +480,10 @@ class SettingsFragment : Fragment() {
             Log.d(TAG, "Before clear - User: ${auth.currentUser?.phoneNumber}")
             
             // Gọi signOut một lần nữa để chắc chắn
-            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+            FirebaseAuth.getInstance().signOut()
             
             // Log state sau khi clear
-            Log.d(TAG, "After clear - User: ${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.phoneNumber}")
+            Log.d(TAG, "After clear - User: ${FirebaseAuth.getInstance().currentUser?.phoneNumber}")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing Firebase Auth state", e)
@@ -384,45 +496,50 @@ class SettingsFragment : Fragment() {
 
         val feedbackData = if (isAnonymous) {
             hashMapOf(
-                "roomNumber" to "anonymous",
-                "phone" to "anonymous",
-                "userName" to "anonymous",
-                "feedback" to feedback,
+                getString(R.string.db_room_number) to getString(R.string.db_anonymous),
+                getString(R.string.db_phone) to getString(R.string.db_anonymous),
+                getString(R.string.db_user_name) to getString(R.string.db_anonymous),
+                getString(R.string.db_feedback) to feedback,
             )
         } else {
             hashMapOf(
-                "roomNumber" to (currentRoomNumber ?: "unknown"),
-                "phone" to (user?.phoneNumber ?: "unknown"),
-                "userName" to (currentUserName ?: "unknown"),
-                "feedback" to feedback,
+                getString(R.string.db_room_number) to (currentRoomNumber ?: getString(R.string.db_unknown)),
+                getString(R.string.db_phone) to (user?.phoneNumber ?: getString(R.string.db_unknown)),
+                getString(R.string.db_user_name) to (currentUserName ?: getString(R.string.db_unknown)),
+                getString(R.string.db_feedback) to feedback,
             )
         }
 
-        val feedbackRef = FirebaseDatabase.getInstance().getReference("service_feedbacks")
+        val feedbackRef = FirebaseDatabase.getInstance().getReference(getString(R.string.db_service_feedbacks))
         feedbackRef.child(timestamp).setValue(feedbackData)
             .addOnSuccessListener {
                 val message = if (isAnonymous) {
-                    "Cảm ơn góp ý ẩn danh về dịch vụ của chúng tôi!"
+                    getString(R.string.feedback_anonymous_success)
                 } else {
-                    "Cảm ơn ${currentUserName ?: "bạn"} đã góp ý về dịch vụ của chúng tôi!"
+                    if (currentUserName != null) {
+                        getString(R.string.feedback_success, currentUserName)
+                    } else {
+                        getString(R.string.feedback_success_you)
+                    }
                 }
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
-                Toast.makeText(requireContext(), "Lỗi gửi góp ý, vui lòng thử lại", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.feedback_error), Toast.LENGTH_SHORT).show()
             }
     }
 
     // Các method khác giữ nguyên...
     private fun showAboutBottomSheet() {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_about, null)
+        @Suppress("InflateParams")
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_about, null, false)
 
         try {
             val packageInfo = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0)
-            view.findViewById<TextView>(R.id.tvVersion).text = "Phiên bản ${packageInfo.versionName}"
+            view.findViewById<TextView>(R.id.tvVersion).text = getString(R.string.version_format, packageInfo.versionName)
         } catch (e: PackageManager.NameNotFoundException) {
-            view.findViewById<TextView>(R.id.tvVersion).text = "Phiên bản 1.0.0"
+            view.findViewById<TextView>(R.id.tvVersion).text = getString(R.string.version_default)
         }
 
         bottomSheetDialog.setContentView(view)
@@ -431,7 +548,8 @@ class SettingsFragment : Fragment() {
 
     private fun showFeedbackBottomSheet() {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_feedback, null)
+        @Suppress("InflateParams")
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_feedback, null, false)
 
         val etFeedback = view.findViewById<EditText>(R.id.etFeedback)
         val btnSubmit = view.findViewById<MaterialButton>(R.id.btnSubmitFeedback)
@@ -450,7 +568,7 @@ class SettingsFragment : Fragment() {
                 submitFeedback(feedback, isAnonymous)
                 bottomSheetDialog.dismiss()
             } else {
-                Toast.makeText(requireContext(), "Vui lòng nhập nội dung góp ý", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.feedback_empty), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -468,7 +586,8 @@ class SettingsFragment : Fragment() {
         }
 
         val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_payment_history, null)
+        @Suppress("InflateParams")
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_payment_history, null, false)
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerViewPayments)
         val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
@@ -497,9 +616,9 @@ class SettingsFragment : Fragment() {
             Log.d(TAG, "Loading payment history for room: $currentRoomNumber")
 
             val paymentsRef = FirebaseDatabase.getInstance()
-                .getReference("rooms")
+                .getReference(getString(R.string.db_rooms))
                 .child(currentRoomNumber!!)
-                .child("payments")
+                .child(getString(R.string.db_payments))
 
             paymentsRef.addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -528,6 +647,8 @@ class SettingsFragment : Fragment() {
                             layoutEmpty.visibility = View.GONE
                             recyclerView.visibility = View.VISIBLE
                             paymentList.sortByDescending { it.timestamp }
+                            // Sử dụng specific change event thay vì notifyDataSetChanged()
+                            @Suppress("NotifyDataSetChanged")
                             adapter.notifyDataSetChanged()
                             Log.d(TAG, "Loaded ${paymentList.size} payment records")
                         }
@@ -540,7 +661,7 @@ class SettingsFragment : Fragment() {
                         layoutEmpty.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
                     }
-                    Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), getString(R.string.payment_load_error, error.message), Toast.LENGTH_SHORT).show()
                     Log.e(TAG, "Error loading payment history: ${error.message}")
                 }
             })
@@ -558,7 +679,7 @@ class SettingsFragment : Fragment() {
             intent.data = Uri.parse("tel:$phoneNumber")
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Không thể mở ứng dụng gọi điện", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.dialer_error), Toast.LENGTH_SHORT).show()
         }
     }
 

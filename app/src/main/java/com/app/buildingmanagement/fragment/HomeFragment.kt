@@ -1,16 +1,24 @@
 package com.app.buildingmanagement.fragment
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.R
 import com.app.buildingmanagement.databinding.FragmentHomeBinding
 import com.app.buildingmanagement.firebase.FCMHelper
 import com.app.buildingmanagement.data.SharedDataManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import java.text.SimpleDateFormat
@@ -25,11 +33,20 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
     private lateinit var database: FirebaseDatabase
     private var valueEventListener: ValueEventListener? = null
     private var roomsRef: DatabaseReference? = null
-    private var fcmTokenSent = false
+    private var topicsInfoSent = false
     private var isDataLoaded = false // Track whether data has been loaded
+    private var hasCheckedNotificationPermission = false // Track notification permission check
 
     companion object {
         private const val TAG = "HomeFragment"
+        private const val NOTIFICATION_PERMISSION_PREF = "notification_permission_requested"
+    }
+
+    // Permission launcher
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        handleNotificationPermissionResult(isGranted)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,10 +192,10 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     Log.d(TAG, "Cache updated with fresh data for room: $roomNumber")
                 }
 
-                // Gửi FCM token nếu chưa gửi
-                if (!fcmTokenSent) {
-                    sendFCMTokenToFirebase(roomNumber)
-                    fcmTokenSent = true
+                // Gửi topics info lên Firebase (luôn gửi để web có thể targeting)
+                if (!topicsInfoSent) {
+                    sendTopicsInfoToFirebase(roomNumber)
+                    topicsInfoSent = true
                 }
 
                 // Lấy chỉ số hiện tại từ nodes
@@ -297,62 +314,13 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
         }
     }
 
-    private fun sendFCMTokenToFirebase(roomNumber: String) {
-        // Lấy FCM token từ SharedPreferences
-        val sharedPref = requireActivity().getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
-        val token = sharedPref.getString("fcm_token", null)
-
-        if (token != null) {
-            // Chỉ gửi token và status (đơn giản hóa)
-            val fcmData = mapOf(
-                "token" to token,
-                "status" to "active"
-            )
-
-            // Gửi lên Firebase theo đường dẫn rooms/{roomNumber}/FCM
-            database.getReference("rooms")
-                .child(roomNumber)
-                .child("FCM")
-                .setValue(fcmData)
-                .addOnSuccessListener {
-                    Log.d(TAG, "FCM token saved successfully for room: $roomNumber")
-                    Log.d(TAG, "Token: $token")
-
-                    // CHỈ GỬI TOPICS INFO LÊN FIREBASE ĐỂ WEB BIẾT - KHÔNG SUBSCRIBE
-                    sendTopicsInfoToFirebase(roomNumber)
-                }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error saving FCM token for room: $roomNumber", e)
-                }
-        } else {
-            Log.w(TAG, "FCM token not found in SharedPreferences")
-            // Thử lấy token mới nếu chưa có
-            requestNewFCMToken(roomNumber)
-        }
-    }
-
-    private fun requestNewFCMToken(roomNumber: String) {
-        FCMHelper.getToken { token ->
-            if (token != null) {
-                // Lưu token mới vào SharedPreferences
-                val sharedPref = requireActivity().getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
-                sharedPref.edit().putString("fcm_token", token).apply()
-
-                // Gửi token lên Firebase
-                sendFCMTokenToFirebase(roomNumber)
-            } else {
-                Log.e(TAG, "Failed to get new FCM token")
-            }
-        }
-    }
-
     /**
-     * CHỈ GỬI TOPICS INFO LÊN FIREBASE ĐỂ WEB CÓ THỂ TARGET
-     * KHÔNG TỰ ĐỘNG SUBSCRIBE TOPICS
+     * GỬI TOPICS INFO LÊN FIREBASE ĐỂ WEB CÓ THỂ TARGET
+     * LUÔN GỬI BẤT KỂ USER CÓ ĐỒNG Ý HAY KHÔNG
      */
     private fun sendTopicsInfoToFirebase(roomNumber: String) {
         try {
-            Log.d(TAG, "Sending topics info to Firebase for room: $roomNumber (subscription handled elsewhere)")
+            Log.d(TAG, "Sending topics info to Firebase for room: $roomNumber")
 
             // Tạo danh sách topics để gửi lên Firebase
             val topics = listOf(
@@ -361,7 +329,7 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 "floor_${roomNumber.substring(0, 1)}"
             )
 
-            // Chỉ gửi danh sách topics lên Firebase để web có thể target
+            // Gửi danh sách topics lên Firebase để web có thể target
             sendTopicsToFirebase(roomNumber, topics)
 
         } catch (e: Exception) {
@@ -370,7 +338,7 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
     }
 
     private fun sendTopicsToFirebase(roomNumber: String, topics: List<String>) {
-        // Gửi danh sách topics lên Firebase để web có thể sử dụng
+        // Gửi danh sách topics lên Firebase để web có thể targeting
         database.getReference("rooms")
             .child(roomNumber)
             .child("FCM")
@@ -378,7 +346,7 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
             .setValue(topics)
             .addOnSuccessListener {
                 Log.d(TAG, "Topics info sent to Firebase successfully for room: $roomNumber")
-                Log.d(TAG, "Topics info: $topics")
+                Log.d(TAG, "Topics: $topics")
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error sending topics info to Firebase for room: $roomNumber", e)
@@ -415,6 +383,149 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
         // Log để debug
         val dataSource = if (fromCache) "CACHE" else "FIREBASE"
         Log.d(TAG, "UI updated from $dataSource: Room=$roomNumber, Electric=$latestElectric/$electricUsed, Water=$latestWater/$waterUsed")
+        
+        // Hỏi quyền thông báo sau khi UI đã được cập nhật và chỉ một lần
+        if (!hasCheckedNotificationPermission && !fromCache && roomNumber != null) {
+            hasCheckedNotificationPermission = true
+            checkNotificationPermissionAfterDataLoad()
+        }
+    }
+
+    private fun checkNotificationPermissionAfterDataLoad() {
+        // Chỉ cần check từ Android 13 (API 33) trở lên
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val sharedPref = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val hasRequestedBefore = sharedPref.getBoolean(NOTIFICATION_PERMISSION_PREF, false)
+
+            // KIỂM TRA CẢ SYSTEM PERMISSION VÀ USER PREFERENCE
+            val appSettings = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val userEnabledNotifications = appSettings.getBoolean("notifications_enabled", true)
+
+            when {
+                ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // ĐÃ CÓ SYSTEM PERMISSION - KIỂM TRA USER PREFERENCE
+                    Log.d(TAG, "System permission granted. User preference: $userEnabledNotifications")
+                    
+                    if (userEnabledNotifications) {
+                        // User muốn nhận thông báo - subscribe topics
+                        Log.d(TAG, "User wants notifications - subscribing to topics")
+                        val roomNumber = SharedDataManager.getCachedRoomNumber()
+                        if (roomNumber != null) {
+                            FCMHelper.subscribeToUserBuildingTopics(roomNumber)
+                            Log.d(TAG, "Auto-subscribed to topics for room: $roomNumber")
+                        }
+                    } else {
+                        // User đã tắt thông báo trong Settings - tôn trọng lựa chọn
+                        Log.d(TAG, "User disabled notifications in Settings - respecting preference")
+                    }
+                }
+                hasRequestedBefore -> {
+                    // Đã hỏi trước đó và bị từ chối, không hỏi lại nữa
+                    Log.d(TAG, "Notification permission was denied before, not asking again")
+                }
+                else -> {
+                    // Chưa hỏi bao giờ, hiển thị dialog giải thích sau 2 giây để user có thời gian hiểu UI
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (isAdded && _binding != null) {
+                            showNotificationPermissionDialog()
+                        }
+                    }, 2000) // Delay 2 giây
+                }
+            }
+        } else {
+            // Android < 13 - không cần permission, kiểm tra user preference
+            Log.d(TAG, "Android version < 13, checking user preference")
+            
+            val appSettings = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val userEnabledNotifications = appSettings.getBoolean("notifications_enabled", true)
+            
+            if (userEnabledNotifications) {
+                Log.d(TAG, "User wants notifications (Android < 13) - subscribing")
+                val roomNumber = SharedDataManager.getCachedRoomNumber()
+                if (roomNumber != null) {
+                    FCMHelper.subscribeToUserBuildingTopics(roomNumber)
+                    Log.d(TAG, "Auto-subscribed to topics for room: $roomNumber (Android < 13)")
+                }
+            } else {
+                Log.d(TAG, "User disabled notifications (Android < 13) - not subscribing")
+            }
+        }
+    }
+
+    private fun showNotificationPermissionDialog() {
+        if (!isAdded || _binding == null) return
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.notification_permission_title))
+            .setMessage(getString(R.string.notification_permission_message))
+            .setPositiveButton(getString(R.string.notification_permission_allow)) { _, _ ->
+                requestNotificationPermission()
+            }
+            .setNegativeButton(getString(R.string.notification_permission_deny)) { _, _ ->
+                handleNotificationPermissionDenied()
+            }
+            .setCancelable(false)
+            .create()
+        
+        dialog.show()
+        
+        // Đảm bảo màu nút hiển thị rõ ràng
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.nav_selected))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.nav_unselected))
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun handleNotificationPermissionResult(isGranted: Boolean) {
+        if (!isAdded) return
+
+        // Lưu trạng thái đã hỏi quyền vào app_prefs
+        val appPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        appPrefs.edit().putBoolean(NOTIFICATION_PERMISSION_PREF, true).apply()
+
+        if (isGranted) {
+            Log.d(TAG, "Notification permission granted - subscribing to topics")
+
+            // LƯU VÀO CÙNG SHARED PREFS VỚI SETTINGS FRAGMENT
+            val appSettings = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            appSettings.edit().putBoolean("notifications_enabled", true).apply()
+
+            // SUBSCRIBE VÀO TOPICS KHI USER ĐỒNG Ý
+            val roomNumber = SharedDataManager.getCachedRoomNumber()
+            if (roomNumber != null) {
+                FCMHelper.subscribeToUserBuildingTopics(roomNumber)
+                Log.d(TAG, "Subscribed to topics for room: $roomNumber")
+            }
+
+            Toast.makeText(requireContext(), getString(R.string.notification_permission_granted), Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d(TAG, "Notification permission denied")
+            handleNotificationPermissionDenied()
+        }
+    }
+
+    private fun handleNotificationPermissionDenied() {
+        if (!isAdded) return
+
+        // Lưu trạng thái đã hỏi quyền vào app_prefs
+        val appPrefs = requireActivity().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        appPrefs.edit().putBoolean(NOTIFICATION_PERMISSION_PREF, true).apply()
+
+        // LƯU VÀO CÙNG SHARED PREFS VỚI SETTINGS FRAGMENT
+        val appSettings = requireActivity().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        appSettings.edit().putBoolean("notifications_enabled", false).apply()
+
+        // KHÔNG SUBSCRIBE TOPICS KHI USER TỪ CHỐI
+        Log.d(TAG, "Notification permission denied - not subscribing to topics")
+
+        Toast.makeText(requireContext(), getString(R.string.notification_permission_denied), Toast.LENGTH_LONG).show()
     }
 
     override fun onDestroyView() {

@@ -37,6 +37,7 @@ class OtpActivity : BaseActivity() {
         auth = FirebaseAuth.getInstance()
 
         verificationId = intent.getStringExtra("verificationId") ?: ""
+        @Suppress("DEPRECATION")
         resendToken = intent.getParcelableExtra("resendToken")!!
         phoneNumber = intent.getStringExtra("phoneNumber")!!
 
@@ -57,7 +58,7 @@ class OtpActivity : BaseActivity() {
                     isAuthenticationInProgress = true
                     signInWithPhoneAuthCredential(credential)
                 } else {
-                    Toast.makeText(this, "Vui lòng nhập đầy đủ mã OTP", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.otp_enter_complete), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -99,11 +100,11 @@ class OtpActivity : BaseActivity() {
         countDownTimer = object : CountDownTimer(60000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = millisUntilFinished / 1000
-                binding?.resendTextView?.text = "Gửi lại mã OTP sau: ${seconds}s"
+                binding?.resendTextView?.text = getString(R.string.otp_resend_timer, seconds)
             }
 
             override fun onFinish() {
-                binding?.resendTextView?.text = "Gửi lại mã OTP"
+                binding?.resendTextView?.text = getString(R.string.otp_resend_button)
                 binding?.resendTextView?.isEnabled = true
                 binding?.resendTextView?.setTextColor(ContextCompat.getColor(this@OtpActivity, R.color.textinput_border_focused))
             }
@@ -136,9 +137,9 @@ class OtpActivity : BaseActivity() {
 
                     val errorMessage = when (task.exception) {
                         is FirebaseAuthInvalidCredentialsException -> {
-                            "Mã OTP không chính xác. Vui lòng kiểm tra lại."
+                            getString(R.string.otp_invalid_code)
                         }
-                        else -> "Xác thực thất bại: ${task.exception?.message}"
+                        else -> getString(R.string.otp_auth_failed, task.exception?.message ?: "")
                     }
 
                     Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
@@ -161,7 +162,7 @@ class OtpActivity : BaseActivity() {
         if (isFinishing) return
 
         Log.d("OTP", "Handling successful authentication")
-        Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.otp_login_success), Toast.LENGTH_SHORT).show()
 
         // Delay ngắn để đảm bảo Firebase state được cập nhật
         Handler(Looper.getMainLooper()).postDelayed({
@@ -200,9 +201,9 @@ class OtpActivity : BaseActivity() {
             isAuthenticationInProgress = false
 
             val errorMessage = when (e) {
-                is FirebaseAuthInvalidCredentialsException -> "Số điện thoại không hợp lệ"
-                is FirebaseTooManyRequestsException -> "Quá nhiều yêu cầu. Vui lòng thử lại sau."
-                else -> "Lỗi xác thực: ${e.message}"
+                is FirebaseAuthInvalidCredentialsException -> getString(R.string.otp_phone_invalid)
+                is FirebaseTooManyRequestsException -> getString(R.string.otp_too_many_requests)
+                else -> getString(R.string.otp_verification_error, e.message ?: "")
             }
 
             Toast.makeText(this@OtpActivity, errorMessage, Toast.LENGTH_LONG).show()
@@ -215,7 +216,7 @@ class OtpActivity : BaseActivity() {
             Log.d("OTP", "New code sent, new verificationId: $newVerificationId")
             verificationId = newVerificationId
             resendToken = newResendToken
-            Toast.makeText(this@OtpActivity, "Đã gửi lại mã OTP", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@OtpActivity, getString(R.string.otp_resent), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -267,7 +268,7 @@ class OtpActivity : BaseActivity() {
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             })
 
-            current?.setOnKeyListener { v, keyCode, event ->
+            current?.setOnKeyListener { _, keyCode, event ->
                 if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DEL) {
                     if (current.text.isNullOrEmpty()) {
                         prev?.apply {

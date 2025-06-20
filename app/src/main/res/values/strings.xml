@@ -10,13 +10,13 @@
     <string name="nav_home">Tổng quan</string>
     <string name="nav_chart">Biểu đồ</string>
     <string name="nav_payment">Thanh toán</string>
-    <string name="nav_settings">Cài đặt</string>
+    <string name="nav_user">Người dùng</string>
 
     <!-- Content descriptions -->
     <string name="nav_home_desc">Màn hình tổng quan</string>
     <string name="nav_chart_desc">Xem biểu đồ thống kê</string>
     <string name="nav_payment_desc">Quản lý thanh toán</string>
-    <string name="nav_settings_desc">Cài đặt ứng dụng</string>
+    <string name="nav_user_desc">Thông tin người dùng</string>
 
     <!-- HomeFragment strings -->
     <string name="loading_text">Đang tải...</string>
@@ -55,4 +55,87 @@
     <string name="payment_electric_detail">Tiêu thụ điện: %d × 3.300đ</string>
     <string name="payment_water_detail">Tiêu thụ nước: %d × 15.000đ</string>
     <string name="payment_amount_format">%sđ</string>
+
+    <!-- SettingsFragment strings -->
+    <string name="no_phone_number">Chưa có số điện thoại</string>
+    <string name="room_prefix">Phòng %s</string>
+    <string name="room_unknown">Không xác định</string>
+    <string name="user_unknown">Không xác định</string>
+    <string name="user_not_found">Không tìm thấy</string>
+    <string name="user_no_name">Chưa có tên</string>
+    <string name="connection_error">Lỗi kết nối</string>
+    <string name="room_unknown_full">Không xác định phòng</string>
+    <string name="user_no_name_full">Chưa có tên</string>
+    <string name="notification_enabled">Đã bật thông báo</string>
+    <string name="notification_disabled">Đã tắt thông báo</string>
+    <string name="logout_title">Đăng xuất</string>
+    <string name="logout_message">Bạn có chắc chắn muốn đăng xuất không?</string>
+    <string name="logout_button">Đăng xuất</string>
+    <string name="cancel_button">Hủy</string>
+    <string name="feedback_anonymous_success">Cảm ơn góp ý ẩn danh về dịch vụ của chúng tôi!</string>
+    <string name="feedback_success">Cảm ơn %s đã góp ý về dịch vụ của chúng tôi!</string>
+    <string name="feedback_success_you">Cảm ơn bạn đã góp ý về dịch vụ của chúng tôi!</string>
+    <string name="feedback_error">Lỗi gửi góp ý, vui lòng thử lại</string>
+    <string name="feedback_empty">Vui lòng nhập nội dung góp ý</string>
+    <string name="version_format">Phiên bản %s</string>
+    <string name="version_default">Phiên bản 1.0.0</string>
+    <string name="dialer_error">Không thể mở ứng dụng gọi điện</string>
+    <string name="payment_load_error">Lỗi tải dữ liệu: %s</string>
+    <string name="support_phone_number">0398103352</string>
+
+    <!-- Firebase database keys -->
+    <string name="db_tenants">tenants</string>
+    <string name="db_phone">phone</string>
+    <string name="db_name">name</string>
+    <string name="db_rooms">rooms</string>
+    <string name="db_payments">payments</string>
+    <string name="db_service_feedbacks">service_feedbacks</string>
+    <string name="db_room_number">roomNumber</string>
+    <string name="db_user_name">userName</string>
+    <string name="db_feedback">feedback</string>
+    <string name="db_anonymous">anonymous</string>
+    <string name="db_unknown">unknown</string>
+
+    <!-- SharedPreferences keys -->
+    <string name="pref_app_settings">app_settings</string>
+    <string name="pref_app_prefs">app_prefs</string>
+    <string name="pref_fcm_prefs">fcm_prefs</string>
+    <string name="pref_notifications_enabled">notifications_enabled</string>
+
+    <!-- MonthPickerDialog strings -->
+    <string name="month_year_title">Tháng %1$d năm %2$d</string>
+    <string name="month_jan">Th1</string>
+    <string name="month_feb">Th2</string>
+    <string name="month_mar">Th3</string>
+    <string name="month_apr">Th4</string>
+    <string name="month_may">Th5</string>
+    <string name="month_jun">Th6</string>
+    <string name="month_jul">Th7</string>
+    <string name="month_aug">Th8</string>
+    <string name="month_sep">Th9</string>
+    <string name="month_oct">Th10</string>
+    <string name="month_nov">Th11</string>
+    <string name="month_dec">Th12</string>
+
+    <!-- OtpActivity strings -->
+    <string name="otp_enter_complete">Vui lòng nhập đầy đủ mã OTP</string>
+    <string name="otp_resend_timer">Gửi lại mã OTP sau: %ds</string>
+    <string name="otp_resend_button">Gửi lại mã OTP</string>
+    <string name="otp_login_success">Đăng nhập thành công!</string>
+    <string name="otp_invalid_code">Mã OTP không chính xác. Vui lòng kiểm tra lại.</string>
+    <string name="otp_auth_failed">Xác thực thất bại: %s</string>
+    <string name="otp_resent">Đã gửi lại mã OTP</string>
+    <string name="otp_phone_invalid">Số điện thoại không hợp lệ</string>
+    <string name="otp_too_many_requests">Quá nhiều yêu cầu. Vui lòng thử lại sau.</string>
+    <string name="otp_verification_error">Lỗi xác thực: %s</string>
+
+    <!-- Notification permission strings -->
+    <string name="notification_permission_title">Cho phép thông báo</string>
+    <string name="notification_permission_message">Ứng dụng cần quyền thông báo để:\n\n• Thông báo thanh toán hóa đơn\n• Cập nhật thông tin từ ban quản lý\n• Thông báo bảo trì hệ thống\n\nBạn có muốn cho phép không?</string>
+    <string name="notification_permission_settings_message">Để nhận thông báo từ ban quản lý, ứng dụng cần quyền thông báo.\n\nBạn có muốn cấp quyền không?</string>
+    <string name="notification_permission_allow">Cho phép</string>
+    <string name="notification_permission_deny">Không</string>
+    <string name="notification_permission_granted">Đã cho phép thông báo</string>
+    <string name="notification_permission_denied">Bạn có thể bật thông báo trong Cài đặt nếu muốn nhận thông tin từ ban quản lý</string>
+    <string name="notification_permission_revoked_message">Quyền thông báo đã bị tắt trong cài đặt hệ thống. Thông báo đã được tự động vô hiệu hóa.</string>
 </resources>

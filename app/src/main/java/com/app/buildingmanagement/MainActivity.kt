@@ -50,9 +50,6 @@ class MainActivity : AppCompatActivity() {
         setupNavigation()
         setupBottomNavigation()
 
-        // Initialize FCM
-        initializeFCMToken()
-
         // PRELOAD USER DATA để fragments load nhanh hơn
         preloadUserData()
 
@@ -131,177 +128,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up bottom navigation", e)
-        }
-    }
-
-    private fun initializeFCMToken() {
-        try {
-            FCMHelper.getToken { token ->
-                if (token != null) {
-                    Log.d(TAG, "FCM Token generated: ${token.take(20)}...")
-                    saveTokenToPrefs(token)
-
-                    // SETUP LISTENER ĐỂ ĐỢI CÓ ROOM NUMBER
-                    setupNotificationSubscriptionWhenReady()
-
-                } else {
-                    Log.w(TAG, "Failed to generate FCM token")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing FCM token", e)
-        }
-    }
-
-    private fun setupNotificationSubscriptionWhenReady() {
-        // Kiểm tra cache trước
-        val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
-        if (cachedRoomNumber != null) {
-            Log.d(TAG, "Room number available from cache: $cachedRoomNumber")
-            
-            // DELAY NHỎ ĐỂ ĐẢM BẢO FCM TOKEN ĐÃ SẴN SÀNG
-            Handler(Looper.getMainLooper()).postDelayed({
-                ensureCorrectSubscriptionState()
-            }, 1000)
-            return
-        }
-
-        // Nếu chưa có cache, đợi HomeFragment load xong
-        val currentUser = auth?.currentUser
-        val phone = currentUser?.phoneNumber
-
-        if (phone != null) {
-            Log.d(TAG, "Waiting for room data to be loaded...")
-            val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
-
-            roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    for (roomSnapshot in snapshot.children) {
-                        val phoneInRoom = roomSnapshot.child("phone").getValue(String::class.java)
-                        if (phoneInRoom == phone) {
-                            val roomNumber = roomSnapshot.key
-                            if (roomNumber != null) {
-                                Log.d(TAG, "Room number found: $roomNumber")
-                                
-                                // DELAY NHỎ ĐỂ ĐẢM BẢO FCM TOKEN ĐÃ SẴN SÀNG
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    ensureCorrectSubscriptionState()
-                                }, 1000)
-                            }
-                            break
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e(TAG, "Error loading room data for subscription setup", error.toException())
-                }
-            })
-        }
-    }
-
-    private fun ensureCorrectSubscriptionState() {
-        val sharedPref = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val roomNumber = getCurrentUserRoomNumber()
-
-        if (roomNumber == null) {
-            Log.w(TAG, "Room number still not available for subscription setup")
-            return
-        }
-
-        // Kiểm tra xem đã có setting chưa
-        if (!sharedPref.contains("notifications_enabled")) {
-            // LẦN ĐẦU TIÊN - SET DEFAULT VÀ SUBSCRIBE
-            Log.d(TAG, "First time app launch - enabling notifications by default and subscribing to room: $roomNumber")
-            sharedPref.edit().putBoolean("notifications_enabled", true).apply()
-            
-            // FORCE SUBSCRIBE LẦN ĐẦU TIÊN
-            FCMHelper.subscribeToUserBuildingTopics(roomNumber)
-            
-            // Log để debug
-            Log.d(TAG, "FORCE subscription completed for first-time user")
-
-        } else {
-            // ĐÃ CÓ SETTING - APPLY THEO SETTING
-            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-
-            if (notificationsEnabled) {
-                Log.d(TAG, "Ensuring topics are subscribed (user preference: enabled) for room: $roomNumber")
-                // ALWAYS RE-SUBSCRIBE để đảm bảo không bị miss
-                FCMHelper.subscribeToUserBuildingTopics(roomNumber)
-            } else {
-                Log.d(TAG, "Ensuring topics are unsubscribed (user preference: disabled) for room: $roomNumber")
-                FCMHelper.unsubscribeFromBuildingTopics(roomNumber)
-            }
-        }
-        
-        // THÊM DELAY NHỎ ĐỂ ĐẢM BẢO SUBSCRIPTION HOÀN THÀNH
-        Handler(Looper.getMainLooper()).postDelayed({
-            Log.d(TAG, "Subscription state setup completed")
-            verifySubscriptionStatus()
-        }, 2000)
-    }
-
-
-    /**
-     * Kiểm tra notification setting và subscribe topics tương ứng
-     */
-    private fun checkNotificationSettingsAndSubscribe() {
-        // Lấy room number từ cache hoặc user data
-        val roomNumber = getCurrentUserRoomNumber()
-
-        // Check setting và subscribe accordingly
-        FCMHelper.checkAndSubscribeBasedOnSettings(this, roomNumber)
-    }
-
-    /**
-     * Helper method để lấy room number
-     */
-    private fun getCurrentUserRoomNumber(): String? {
-        return com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
-    }
-
-    /**
-     * THÊM METHOD VERIFY SUBSCRIPTION STATUS
-     */
-    private fun verifySubscriptionStatus() {
-        val sharedPref = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-        val roomNumber = getCurrentUserRoomNumber()
-        
-        Log.d(TAG, "=== SUBSCRIPTION STATUS VERIFICATION ===")
-        Log.d(TAG, "Notifications Enabled: $notificationsEnabled")
-        Log.d(TAG, "Room Number: $roomNumber")
-        Log.d(TAG, "Expected Topics: all_residents${if (roomNumber != null) ", room_$roomNumber, floor_${roomNumber.substring(0, 1)}" else ""}")
-        Log.d(TAG, "=== END VERIFICATION ===")
-    }
-
-    /**
-     * PUBLIC METHOD ĐỂ FORCE RE-SUBSCRIBE (có thể gọi từ SettingsFragment)
-     */
-    fun forceResubscribeNotifications() {
-        Log.d(TAG, "Force re-subscribing notifications...")
-        val roomNumber = getCurrentUserRoomNumber()
-        if (roomNumber != null) {
-            FCMHelper.subscribeToUserBuildingTopics(roomNumber)
-            verifySubscriptionStatus()
-        }
-    }
-
-    private fun saveTokenToPrefs(token: String) {
-        try {
-            val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
-            val success = sharedPref.edit()
-                .putString(FCM_TOKEN_KEY, token)
-                .commit()
-
-            if (success) {
-                Log.d(TAG, "FCM token saved to SharedPreferences")
-            } else {
-                Log.e(TAG, "Failed to save FCM token to SharedPreferences")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving FCM token to preferences", e)
         }
     }
 
@@ -404,7 +230,7 @@ class MainActivity : AppCompatActivity() {
                 val phone = currentUser.phoneNumber
                 if (phone != null) {
                     Log.d(TAG, "Cleaning up FCM data for user: ${phone.take(10)}...")
-                    cleanupFCMOnLogout(phone)
+                    cleanupFCMOnLogout()
                 }
             }
 
@@ -447,7 +273,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun cleanupFCMOnLogout(phone: String) {
+    private fun cleanupFCMOnLogout() {
         try {
             // Unsubscribe from FCM topics
             FCMHelper.unsubscribeFromBuildingTopics(null)
@@ -462,25 +288,6 @@ class MainActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up FCM data", e)
-        }
-    }
-
-    fun getCurrentFCMToken(): String? {
-        return try {
-            val sharedPref = getSharedPreferences(FCM_PREFS, MODE_PRIVATE)
-            sharedPref.getString(FCM_TOKEN_KEY, null)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting FCM token from preferences", e)
-            null
-        }
-    }
-
-    fun refreshFCMToken() {
-        try {
-            Log.d(TAG, "Refreshing FCM token...")
-            initializeFCMToken()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error refreshing FCM token", e)
         }
     }
 
