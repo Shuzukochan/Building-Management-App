@@ -1,8 +1,6 @@
 package com.app.buildingmanagement.firebase
 
-import android.content.Context
 import android.util.Log
-import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.messaging.FirebaseMessaging
 
 /**
@@ -11,26 +9,6 @@ import com.google.firebase.messaging.FirebaseMessaging
 class FCMHelper {
     companion object {
         private const val TAG = "FCMHelper"
-
-        /**
-         * Lấy token của thiết bị hiện tại
-         */
-        fun getToken(callback: (String?) -> Unit) {
-            FirebaseMessaging.getInstance().token
-                .addOnCompleteListener(OnCompleteListener { task ->
-                    if (!task.isSuccessful) {
-                        Log.w(TAG, "Không thể lấy token FCM", task.exception)
-                        callback(null)
-                        return@OnCompleteListener
-                    }
-
-                    // Lấy token mới
-                    val token = task.result
-                    Log.d(TAG, "FCM Token: $token")
-                    callback(token)
-                })
-        }
-
         /**
          * Đăng ký để nhận thông báo theo chủ đề
          */
@@ -104,22 +82,6 @@ class FCMHelper {
                 Log.d(TAG, "Hủy đăng ký tất cả các topic: all_residents, room_$roomNumber, floor_$floor")
             } else {
                 Log.d(TAG, "Hủy đăng ký topic all_residents (không có số phòng)")
-            }
-        }
-
-        /**
-         * Kiểm tra setting và subscribe/unsubscribe topics theo đó
-         */
-        fun checkAndSubscribeBasedOnSettings(context: Context, roomNumber: String?) {
-            val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            val notificationsEnabled = sharedPref.getBoolean("notifications_enabled", true)
-
-            if (notificationsEnabled) {
-                Log.d(TAG, "Notifications enabled, subscribing to topics...")
-                subscribeToUserBuildingTopics(roomNumber)
-            } else {
-                Log.d(TAG, "Notifications disabled, unsubscribing from topics...")
-                unsubscribeFromBuildingTopics(roomNumber)
             }
         }
     }

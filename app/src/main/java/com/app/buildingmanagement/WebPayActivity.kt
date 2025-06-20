@@ -31,7 +31,7 @@ class WebPayActivity : AppCompatActivity() {
     private var originalUrl: String? = null
     private var isWebViewCrashed = false
     private var lastValidUrl: String? = null
-    private var paymentProcessed = false // ✅ Flag để tránh duplicate processing
+    private var paymentProcessed = false 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,15 +51,24 @@ class WebPayActivity : AppCompatActivity() {
     private fun setupWindow() {
         window.apply {
             addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
-            addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
+            
+            // Fix deprecated flags với version check
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+                addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
+            }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // Fix deprecated statusBarColor và navigationBarColor
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 statusBarColor = Color.WHITE
                 navigationBarColor = Color.WHITE
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Fix deprecated systemUiVisibility
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             }
 
@@ -71,6 +80,7 @@ class WebPayActivity : AppCompatActivity() {
         val androidChromeUA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36"
 
         with(webView.settings) {
+            @Suppress("SetJavaScriptEnabled")
             javaScriptEnabled = true
             domStorageEnabled = true
             userAgentString = androidChromeUA
@@ -79,12 +89,31 @@ class WebPayActivity : AppCompatActivity() {
             // ✅ TẮT multiple windows để tránh popup
             setSupportMultipleWindows(false)
             javaScriptCanOpenWindowsAutomatically = false
-            allowUniversalAccessFromFileURLs = true
-            allowFileAccessFromFileURLs = true
+            
+            // Fix deprecated file access settings
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                allowUniversalAccessFromFileURLs = true
+                allowFileAccessFromFileURLs = true
+            }
+            
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            safeBrowsingEnabled = false
+            
+            // Fix deprecated safeBrowsingEnabled
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    safeBrowsingEnabled = false
+                }
+            }
+            
             cacheMode = WebSettings.LOAD_DEFAULT
-            setRenderPriority(WebSettings.RenderPriority.HIGH)
+            
+            // Fix deprecated setRenderPriority
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                setRenderPriority(WebSettings.RenderPriority.HIGH)
+            }
+            
             builtInZoomControls = false
             displayZoomControls = false
         }
@@ -103,7 +132,12 @@ class WebPayActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
 
             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
-                Log.e("WebPayActivity", "🔥 WebView render process gone! Crashed: ${detail?.didCrash()}")
+                val crashInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    detail?.didCrash()
+                } else {
+                    "unknown"
+                }
+                Log.e("WebPayActivity", "🔥 WebView render process gone! Crashed: $crashInfo")
                 isWebViewCrashed = true
 
                 runOnUiThread {
@@ -257,7 +291,7 @@ class WebPayActivity : AppCompatActivity() {
 
                         if (isHomePage && originalUrl != null) {
                             Log.w("WebPayActivity", "⚠️ Detected redirect to home page, reloading payment URL")
-                            view?.postDelayed({
+                            view.postDelayed({
                                 view.loadUrl(originalUrl!!)
                             }, 1000)
                         }
@@ -361,7 +395,20 @@ class WebPayActivity : AppCompatActivity() {
                         FileOutputStream(file).use { it.write(imageBytes) }
 
                         val uri = Uri.fromFile(file)
-                        sendBroadcast(Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri))
+                        
+                        // Fix deprecated ACTION_MEDIA_SCANNER_SCAN_FILE
+                        @Suppress("DEPRECATION")
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                            sendBroadcast(Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri))
+                        } else {
+                            // Use MediaScannerConnection for API 29+
+                            android.media.MediaScannerConnection.scanFile(
+                                this,
+                                arrayOf(file.absolutePath),
+                                arrayOf("image/png"),
+                                null
+                            )
+                        }
 
                         Toast.makeText(this, "Đã lưu ảnh vào thư mục Tải về", Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
