@@ -404,185 +404,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         }
     }
 
-    private fun loadAvailableMonths() {
-        userRoomNumber?.let { roomNumber ->
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    // Kiểm tra fragment vẫn còn active
-                    if (_binding == null || !isAdded) return
-
-                    val rawMonths = mutableSetOf<String>()
-                    for (dateSnapshot in snapshot.children) {
-                        val dateKey = dateSnapshot.key ?: continue
-                        if (dateKey.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
-                            val monthKey = dateKey.substring(0, 7)
-                            rawMonths.add(monthKey)
-                        }
-                    }
-                    monthKeys = rawMonths.sorted()
-                    val displayMonths = monthKeys.map {
-                        val parts = it.split("-")
-                        val cal = Calendar.getInstance()
-                        cal.set(Calendar.YEAR, parts[0].toInt())
-                        cal.set(Calendar.MONTH, parts[1].toInt() - 1)
-                        SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(cal.time)
-                    }
-
-                    if (monthKeys.isEmpty()) return
-
-                    val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, displayMonths)
-                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                    binding.spnMonthPicker.adapter = adapter
-                    binding.spnMonthPicker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                            selectedMonth = monthKeys[position]
-                            loadUsageData()
-                            updateUIBasedOnMonth()
-                        }
-                        override fun onNothingSelected(parent: AdapterView<*>?) {}
-                    }
-
-                    // LOGIC CHỌN THÁNG MẶC ĐỊNH ĐÃ ĐƯỢC CẢI THIỆN
-                    val calendar = Calendar.getInstance()
-                    val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-                    val currentMonthKey = monthKeyFormat.format(calendar.time)
-                    val prevCalendar = Calendar.getInstance()
-                    prevCalendar.add(Calendar.MONTH, -1)
-                    val previousMonthKey = monthKeyFormat.format(prevCalendar.time)
-
-                    if (monthKeys.contains(previousMonthKey)) {
-                        // Kiểm tra dữ liệu tháng trước
-                        val prevMonthDates = snapshot.children
-                            .mapNotNull { it.key }
-                            .filter { it.startsWith(previousMonthKey) }
-                            .sorted()
-
-                        if (prevMonthDates.size >= 2) {
-                            val firstDay = prevMonthDates.first()
-                            val lastDay = prevMonthDates.last()
-                            val firstSnapshot = snapshot.child(firstDay)
-                            val lastSnapshot = snapshot.child(lastDay)
-
-                            val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt() ?: 0
-                            val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt() ?: 0
-                            val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt() ?: 0
-                            val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt() ?: 0
-
-                            val prevElectric = lastElectric - firstElectric
-                            val prevWater = lastWater - firstWater
-                            val prevTotalCost = prevElectric * 3300 + prevWater * 15000
-
-                            // Kiểm tra trạng thái thanh toán tháng trước
-                            val paymentListener = object : ValueEventListener {
-                                override fun onDataChange(paymentSnapshot: DataSnapshot) {
-                                    // Kiểm tra fragment vẫn còn active
-                                    if (_binding == null || !isAdded) return
-
-                                    val isPreviousMonthPaid = paymentSnapshot.exists() &&
-                                            paymentSnapshot.child("status").getValue(String::class.java) == "PAID"
-
-                                    val shouldSwitchToCurrent = prevMonthDates.size < 2 ||
-                                            (prevElectric == 0 && prevWater == 0) ||
-                                            prevTotalCost == 0 ||
-                                            isPreviousMonthPaid
-
-                                    if (shouldSwitchToCurrent) {
-                                        if (monthKeys.contains(currentMonthKey)) {
-                                            val idx = monthKeys.indexOf(currentMonthKey)
-                                            binding.spnMonthPicker.setSelection(idx)
-                                            Log.d(TAG, "Chuyển sang tháng hiện tại vì tháng trước đã thanh toán hoặc không có dữ liệu")
-                                        } else {
-                                            binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                                            Log.d(TAG, "Không có tháng hiện tại, chọn tháng cuối cùng")
-                                        }
-                                    } else {
-                                        val idx = monthKeys.indexOf(previousMonthKey)
-                                        binding.spnMonthPicker.setSelection(idx)
-                                        Log.d(TAG, "Hiển thị tháng trước vì chưa thanh toán và có phát sinh chi phí")
-                                    }
-                                }
-
-                                override fun onCancelled(error: DatabaseError) {
-                                    if (_binding != null && isAdded) {
-                                        Log.e(TAG, "Lỗi kiểm tra trạng thái thanh toán: ${error.message}")
-                                        if (monthKeys.contains(currentMonthKey)) {
-                                            val idx = monthKeys.indexOf(currentMonthKey)
-                                            binding.spnMonthPicker.setSelection(idx)
-                                        }
-                                    }
-                                }
-                            }
-
-                            roomsRef.child(roomNumber).child("payments").child(previousMonthKey)
-                                .addListenerForSingleValueEvent(paymentListener)
-                        } else {
-                            // Không đủ dữ liệu tháng trước, chuyển sang tháng hiện tại
-                            if (monthKeys.contains(currentMonthKey)) {
-                                val idx = monthKeys.indexOf(currentMonthKey)
-                                binding.spnMonthPicker.setSelection(idx)
-                                Log.d(TAG, "Chuyển sang tháng hiện tại vì tháng trước không đủ dữ liệu")
-                            } else {
-                                binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                            }
-                        }
-                    } else {
-                        // Không có tháng trước, chọn tháng hiện tại hoặc tháng mới nhất
-                        if (monthKeys.contains(currentMonthKey)) {
-                            val idx = monthKeys.indexOf(currentMonthKey)
-                            binding.spnMonthPicker.setSelection(idx)
-                            Log.d(TAG, "Hiển thị tháng hiện tại mặc định")
-                        } else {
-                            binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                            Log.d(TAG, "Hiển thị tháng mới nhất vì không có tháng hiện tại")
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    if (_binding != null && isAdded) {
-                        Log.e(TAG, "Lỗi khi tải danh sách tháng từ history: ${error.message}")
-                    }
-                }
-            }
-
-            roomsRef.child(roomNumber).child("history")
-                .addListenerForSingleValueEvent(listener)
-        }
-    }
-
-    private fun determineDefaultMonth(monthKeys: List<String>) {
-        userRoomNumber?.let { roomNumber ->
-            val calendar = Calendar.getInstance()
-            val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-            currentMonth = monthKeyFormat.format(calendar.time)
-            calendar.add(Calendar.MONTH, -1)
-            previousMonth = monthKeyFormat.format(calendar.time)
-
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    // Kiểm tra fragment vẫn còn active
-                    if (_binding == null || !isAdded) return
-
-                    val isPreviousMonthPaid = snapshot.exists() &&
-                            snapshot.child("status").getValue(String::class.java) == "PAID"
-
-                    val defaultMonth = if (!isPreviousMonthPaid) currentMonth else previousMonth
-                    val index = monthKeys.indexOf(defaultMonth)
-
-                    if (index in monthKeys.indices) {
-                        binding.spnMonthPicker.setSelection(index)
-                    } else {
-                        binding.spnMonthPicker.setSelection(monthKeys.size - 1)
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {}
-            }
-
-            val historyRef = roomsRef.child(roomNumber).child("history").child(previousMonth)
-            historyRef.addListenerForSingleValueEvent(listener)
-        }
-    }
 
     private fun setupPaymentStatusListener() {
         userRoomNumber?.let { roomNumber ->
@@ -596,43 +417,6 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             checkPaymentStatus()
             loadUsageData()
             updateUIBasedOnMonth()
-        }
-    }
-
-    private fun setupMonthSpinner() {
-        val calendar = Calendar.getInstance()
-        val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
-        val monthKeyFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-
-        currentMonth = monthKeyFormat.format(calendar.time)
-        calendar.add(Calendar.MONTH, -1)
-        previousMonth = monthKeyFormat.format(calendar.time)
-
-        val months = mutableListOf<String>()
-        val monthKeys = mutableListOf<String>()
-
-        calendar.add(Calendar.MONTH, -4)
-
-        for (i in 0..5) {
-            monthKeys.add(monthKeyFormat.format(calendar.time))
-            months.add(monthFormat.format(calendar.time))
-            calendar.add(Calendar.MONTH, 1)
-        }
-
-        if (_binding != null && isAdded) {
-            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, months)
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spnMonthPicker.adapter = adapter
-
-            binding.spnMonthPicker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    selectedMonth = monthKeys[position]
-                    loadUsageData()
-                    updateUIBasedOnMonth()
-                }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
         }
     }
 
@@ -721,10 +505,10 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                         val linearLayout = binding.cardPaymentStatus.getChildAt(0) as LinearLayout
                         linearLayout.background = ContextCompat.getDrawable(requireContext(), R.drawable.gradient_green)
                         binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_check_circle)
-                        binding.tvPaymentStatus.text = "Không cần thanh toán tháng ${getDisplayMonth()}"
-                        binding.tvNote.text = "Tháng này không phát sinh chi phí."
+                        binding.tvPaymentStatus.text = getString(R.string.payment_no_need_month, getDisplayMonth())
+                        binding.tvNote.text = getString(R.string.payment_no_cost_note)
                         binding.btnPayNow.isEnabled = false
-                        binding.btnPayNow.text = "✅ Không cần thanh toán"
+                        binding.btnPayNow.text = getString(R.string.payment_no_need_button)
                         binding.btnPayNow.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.gray_disabled))
                         binding.cardPaymentNotice.visibility = View.GONE
                         updateCalculationTitle(isCurrentMonth)
@@ -734,16 +518,24 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                             if (_binding == null || !isAdded) return@checkSelectedMonthPaymentStatus
 
                             if (isCurrentMonth) {
-                                updatePaymentStatusCard(false, true)
+                                updatePaymentStatusCard(isPaid = false, isCurrentMonth = true)
                                 updateCalculationTitle(true)
-                                updatePaymentButton(false, true, false)
-                                updatePaymentNotice(false, true, false)
+                                updatePaymentButton(
+                                    isPaid = false,
+                                    isCurrentMonth = true,
+                                    isPreviousMonth = false
+                                )
+                                updatePaymentNotice(
+                                    isPaid = false,
+                                    isCurrentMonth = true,
+                                    isPreviousMonth = false
+                                )
                             } else {
                                 val isPreviousMonth = selectedMonth == previousMonth
-                                updatePaymentStatusCard(isPaid, isCurrentMonth)
-                                updateCalculationTitle(isCurrentMonth)
-                                updatePaymentButton(isPaid, isCurrentMonth, isPreviousMonth)
-                                updatePaymentNotice(isPaid, isCurrentMonth, isPreviousMonth)
+                                updatePaymentStatusCard(isPaid, false)
+                                updateCalculationTitle(false)
+                                updatePaymentButton(isPaid, false, isPreviousMonth)
+                                updatePaymentNotice(isPaid, false, isPreviousMonth)
                             }
                         }
                     }
@@ -807,23 +599,23 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                 requireContext(), R.drawable.gradient_green
             )
             binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_check_circle)
-            binding.tvPaymentStatus.text = "Đã thanh toán tháng ${getDisplayMonth()}"
-            binding.tvNote.text = "Cảm ơn bạn đã thanh toán đúng hạn!"
+            binding.tvPaymentStatus.text = getString(R.string.payment_paid_month, getDisplayMonth())
+            binding.tvNote.text = getString(R.string.payment_paid_note)
         } else {
             if (isCurrentMonth) {
                 linearLayout.background = ContextCompat.getDrawable(
                     requireContext(), R.drawable.gradient_orange
                 )
                 binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_pending)
-                binding.tvPaymentStatus.text = "Tạm tính tháng ${getDisplayMonth()}"
-                binding.tvNote.text = "Đây là số liệu tạm tính. Thanh toán vào ngày 01 tháng sau."
+                binding.tvPaymentStatus.text = getString(R.string.payment_estimate_month, getDisplayMonth())
+                binding.tvNote.text = getString(R.string.payment_estimate_note)
             } else {
                 linearLayout.background = ContextCompat.getDrawable(
                     requireContext(), R.drawable.gradient_red
                 )
                 binding.ivPaymentStatusIcon.setImageResource(R.drawable.ic_warning)
-                binding.tvPaymentStatus.text = "Chưa thanh toán tháng ${getDisplayMonth()}"
-                binding.tvNote.text = "Vui lòng thanh toán để tránh bị cắt dịch vụ."
+                binding.tvPaymentStatus.text = getString(R.string.payment_unpaid_month, getDisplayMonth())
+                binding.tvNote.text = getString(R.string.payment_unpaid_note)
             }
         }
     }
@@ -834,9 +626,9 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         val today = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
         val title = if (isCurrentMonth) {
-            "Tạm tính đến ngày: $today"
+            getString(R.string.payment_calculation_estimate, today)
         } else {
-            "Chi tiết tháng ${getDisplayMonth()}"
+            getString(R.string.payment_calculation_detail, getDisplayMonth())
         }
         binding.tvCalculationTitle.text = title
     }
@@ -848,28 +640,28 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         when {
             isPaid -> {
                 binding.btnPayNow.isEnabled = false
-                binding.btnPayNow.text = "✅ Đã thanh toán"
+                binding.btnPayNow.text = getString(R.string.payment_button_paid)
                 binding.btnPayNow.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), R.color.gray_disabled)
                 )
             }
             isCurrentMonth -> {
                 binding.btnPayNow.isEnabled = false
-                binding.btnPayNow.text = "⏳ Chưa đến hạn thanh toán"
+                binding.btnPayNow.text = getString(R.string.payment_button_not_due)
                 binding.btnPayNow.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), R.color.gray_disabled)
                 )
             }
             isPreviousMonth -> {
                 binding.btnPayNow.isEnabled = true
-                binding.btnPayNow.text = "💳 Xác nhận thanh toán"
+                binding.btnPayNow.text = getString(R.string.payment_button_confirm)
                 binding.btnPayNow.background = ContextCompat.getDrawable(
                     requireContext(), R.drawable.button_gradient_background
                 )
             }
             else -> {
                 binding.btnPayNow.isEnabled = false
-                binding.btnPayNow.text = "❌ Quá hạn thanh toán"
+                binding.btnPayNow.text = getString(R.string.payment_button_overdue)
                 binding.btnPayNow.setBackgroundColor(
                     ContextCompat.getColor(requireContext(), R.color.gray_disabled)
                 )
@@ -890,21 +682,18 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             }
             isCurrentMonth -> {
                 binding.cardPaymentNotice.visibility = View.VISIBLE
-                binding.tvPaymentNoticeTitle.text = "Thông báo"
-                binding.tvPaymentNoticeContent.text =
-                    "Đây là số liệu tạm tính. Thanh toán sẽ được mở vào ngày 01 tháng sau."
+                binding.tvPaymentNoticeTitle.text = getString(R.string.payment_notice_title_info)
+                binding.tvPaymentNoticeContent.text = getString(R.string.payment_notice_content_estimate)
             }
             isPreviousMonth -> {
                 binding.cardPaymentNotice.visibility = View.VISIBLE
-                binding.tvPaymentNoticeTitle.text = "Cần thanh toán"
-                binding.tvPaymentNoticeContent.text =
-                    "Vui lòng thanh toán để tránh bị ngắt dịch vụ điện nước."
+                binding.tvPaymentNoticeTitle.text = getString(R.string.payment_notice_title_need)
+                binding.tvPaymentNoticeContent.text = getString(R.string.payment_notice_content_need)
             }
             else -> {
                 binding.cardPaymentNotice.visibility = View.VISIBLE
-                binding.tvPaymentNoticeTitle.text = "Quá hạn"
-                binding.tvPaymentNoticeContent.text =
-                    "Hóa đơn này đã quá hạn thanh toán. Vui lòng liên hệ quản lý."
+                binding.tvPaymentNoticeTitle.text = getString(R.string.payment_notice_title_overdue)
+                binding.tvPaymentNoticeContent.text = getString(R.string.payment_notice_content_overdue)
             }
         }
     }
@@ -999,17 +788,17 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     val waterCost = usedWater * 15000
                     totalCost = electricCost + waterCost
 
-                    val electricCostFormatted = String.format("%,d", electricCost)
-                    val waterCostFormatted = String.format("%,d", waterCost)
-                    val totalCostFormatted = String.format("%,d", totalCost)
+                    val electricCostFormatted = String.format(Locale.getDefault(), "%,d", electricCost)
+                    val waterCostFormatted = String.format(Locale.getDefault(), "%,d", waterCost)
+                    val totalCostFormatted = String.format(Locale.getDefault(), "%,d", totalCost)
 
-                    binding.tvElectricDetail.text = "Tiêu thụ điện: $usedElectric × 3.300đ"
-                    binding.tvElectricAmount.text = "${electricCostFormatted}đ"
+                    binding.tvElectricDetail.text = getString(R.string.payment_electric_detail, usedElectric)
+                    binding.tvElectricAmount.text = getString(R.string.payment_amount_format, electricCostFormatted)
 
-                    binding.tvWaterDetail.text = "Tiêu thụ nước: $usedWater × 15.000đ"
-                    binding.tvWaterAmount.text = "${waterCostFormatted}đ"
+                    binding.tvWaterDetail.text = getString(R.string.payment_water_detail, usedWater)
+                    binding.tvWaterAmount.text = getString(R.string.payment_amount_format, waterCostFormatted)
 
-                    binding.tvTotalAmount.text = "${totalCostFormatted}đ"
+                    binding.tvTotalAmount.text = getString(R.string.payment_amount_format, totalCostFormatted)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
@@ -1099,7 +888,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         Log.d("PAYOS_DEBUG", "Amount: $amount")
 
         val dataToSign = "amount=$amount&cancelUrl=$cancelUrl&description=$description&orderCode=$orderCode&returnUrl=$returnUrl"
-        val signature = hmacSha256(dataToSign, com.app.buildingmanagement.BuildConfig.SIGNATURE)
+        val signature = hmacSha256(dataToSign)
 
         val json = JSONObject().apply {
             put("orderCode", orderCode)
@@ -1172,6 +961,7 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                                 intent.putExtra("amount", amount)
                                 intent.putExtra("month", selectedMonth)
                                 intent.putExtra("roomNumber", userRoomNumber)
+                                @Suppress("DEPRECATION")
                                 startActivityForResult(intent, PAYMENT_REQUEST_CODE)
                             }
                         }
@@ -1193,6 +983,8 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
         })
     }
 
+    @Suppress("DEPRECATION")
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -1239,9 +1031,12 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             .start()
     }
 
-    private fun hmacSha256(data: String, key: String): String {
+    private fun hmacSha256(data: String): String {
         val hmac = Mac.getInstance("HmacSHA256")
-        val secretKeySpec = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA256")
+        val secretKeySpec = SecretKeySpec(
+            com.app.buildingmanagement.BuildConfig.SIGNATURE.toByteArray(Charsets.UTF_8),
+            "HmacSHA256"
+        )
         hmac.init(secretKeySpec)
         val hash = hmac.doFinal(data.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
