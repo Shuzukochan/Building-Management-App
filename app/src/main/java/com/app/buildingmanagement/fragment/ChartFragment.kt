@@ -388,12 +388,44 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
             val prev = map[prevKey]
             if (prev != null && curr != null) curr - prev else 0
         } else {
-            val filtered = map.filterKeys { it.startsWith(key) }.toSortedMap()
-            if (filtered.size >= 2) {
-                val first = filtered.values.first()
-                val last = filtered.values.last()
-                last - first
-            } else 0
+            // Logic mới cho tháng: giống HomeFragment
+            val prevMonth = Calendar.getInstance().apply {
+                time = cal.time
+                add(Calendar.MONTH, -1)
+            }
+            val prevMonthKey = firebaseMonthFormatter.format(prevMonth.time)
+            
+            Log.d(TAG, "=== ChartFragment: Calculating consumption for month $key ===")
+            
+            // Lấy dữ liệu tháng hiện tại và tháng trước
+            val currentMonthData = map.filterKeys { it.startsWith(key) }.toSortedMap()
+            val prevMonthData = map.filterKeys { it.startsWith(prevMonthKey) }.toSortedMap()
+            
+            Log.d(TAG, "Current month data: $currentMonthData")
+            Log.d(TAG, "Previous month data: $prevMonthData")
+            
+            val currentValues = currentMonthData.values.toList()
+            val prevValues = prevMonthData.values.toList()
+            
+            Log.d(TAG, "Current month values: $currentValues")
+            Log.d(TAG, "Previous month values: $prevValues")
+            
+            val currentMaxValue = currentValues.maxOrNull() ?: 0
+            val prevMonthLastValue = prevValues.lastOrNull()
+            
+            val result = if (prevMonthLastValue != null) {
+                // Trường hợp bình thường: có dữ liệu tháng trước
+                Log.d(TAG, "Normal case: $currentMaxValue - $prevMonthLastValue = ${currentMaxValue - prevMonthLastValue}")
+                currentMaxValue - prevMonthLastValue
+            } else {
+                // Trường hợp đặc biệt: không có dữ liệu tháng trước
+                val currentMinValue = currentValues.minOrNull() ?: 0
+                Log.d(TAG, "Special case: $currentMaxValue - $currentMinValue = ${currentMaxValue - currentMinValue}")
+                currentMaxValue - currentMinValue
+            }
+            
+            Log.d(TAG, "Final result: $result")
+            result
         }
     }
 

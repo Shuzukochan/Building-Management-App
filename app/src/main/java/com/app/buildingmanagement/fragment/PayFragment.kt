@@ -661,34 +661,57 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     // Kiểm tra fragment vẫn còn active
                     if (_binding == null || !isAdded) return
 
-                    val monthDates = snapshot.children
-                        .mapNotNull { it.key }
-                        .filter { it.startsWith(selectedMonth) }
-                        .sorted()
-                    var startElectric: Int? = null
-                    var endElectric: Int? = null
-                    var startWater: Int? = null
-                    var endWater: Int? = null
-                    if (monthDates.isNotEmpty()) {
-                        val firstDay = monthDates.first()
-                        val lastDay = monthDates.last()
-                        val firstSnapshot = snapshot.child(firstDay)
-                        val lastSnapshot = snapshot.child(lastDay)
-                        val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                        val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                        val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                        val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                        if (firstElectric != null && lastElectric != null) {
-                            startElectric = firstElectric
-                            endElectric = lastElectric
+                    // Validation: Kiểm tra selectedMonth có hợp lệ không
+                    if (selectedMonth.isBlank() || !selectedMonth.matches(Regex("\\d{4}-\\d{2}"))) {
+                        Log.e(TAG, "Invalid selectedMonth: '$selectedMonth'")
+                        return
+                    }
+
+                    // Logic mới: sử dụng calculateMonthlyConsumption
+                    val prevMonth = Calendar.getInstance().apply {
+                        val parts = selectedMonth.split("-")
+                        if (parts.size < 2) {
+                            Log.e(TAG, "Invalid selectedMonth format: '$selectedMonth'")
+                            return@apply
                         }
-                        if (firstWater != null && lastWater != null) {
-                            startWater = firstWater
-                            endWater = lastWater
+                        try {
+                            set(Calendar.YEAR, parts[0].toInt())
+                            set(Calendar.MONTH, parts[1].toInt() - 1)
+                            add(Calendar.MONTH, -1)
+                        } catch (e: NumberFormatException) {
+                            Log.e(TAG, "Error parsing selectedMonth: '$selectedMonth'", e)
+                            return@apply
                         }
                     }
-                    val usedElectric = if (startElectric != null && endElectric != null) endElectric - startElectric else 0
-                    val usedWater = if (startWater != null && endWater != null) endWater - startWater else 0
+                    val prevMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(prevMonth.time)
+                    
+                    // Lấy dữ liệu tháng hiện tại và tháng trước
+                    val currentMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
+                    val prevMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
+                    
+                    // Thu thập dữ liệu từ snapshot
+                    for (dateSnapshot in snapshot.children) {
+                        val dateKey = dateSnapshot.key ?: continue
+                        val electric = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                        val water = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                        
+                        when {
+                            dateKey.startsWith(selectedMonth) -> {
+                                currentMonthData[dateKey] = Pair(electric, water)
+                            }
+                            dateKey.startsWith(prevMonthKey) -> {
+                                prevMonthData[dateKey] = Pair(electric, water)
+                            }
+                        }
+                    }
+                    
+                    Log.d(TAG, "Current month data: $currentMonthData")
+                    Log.d(TAG, "Previous month data: $prevMonthData")
+                    
+                    // Tính consumption bằng method mới
+                    val usedElectric = calculateMonthlyConsumption(currentMonthData, prevMonthData, true)
+                    val usedWater = calculateMonthlyConsumption(currentMonthData, prevMonthData, false)
+                    
                     val electricCost = usedElectric * 3300
                     val waterCost = usedWater * 15000
                     val total = electricCost + waterCost
@@ -910,51 +933,67 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     // Kiểm tra fragment vẫn còn active
                     if (_binding == null || !isAdded) return
 
-                    var startElectric: Int? = null
-                    var endElectric: Int? = null
-                    var startWater: Int? = null
-                    var endWater: Int? = null
+                    Log.d(TAG, "=== CALCULATING PAYMENT CONSUMPTION ===")
+                    Log.d(TAG, "Selected Month: $selectedMonth")
 
-                    Log.d(TAG, "selectedMonth: $selectedMonth")
-                    val monthDates = snapshot.children
-                        .mapNotNull { it.key }
-                        .filter { it.startsWith(selectedMonth) }
-                        .sorted()
-
-                    Log.d(TAG, "monthDates: $monthDates")
-
-                    if (monthDates.isNotEmpty()) {
-                        val firstDay = monthDates.first()
-                        val lastDay = monthDates.last()
-
-                        val firstSnapshot = snapshot.child(firstDay)
-                        val lastSnapshot = snapshot.child(lastDay)
-
-                        val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                        val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                        val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                        val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
-
-                        Log.d(TAG, "firstDay: $firstDay, lastDay: $lastDay, firstElectric: $firstElectric, lastElectric: $lastElectric, firstWater: $firstWater, lastWater: $lastWater")
-
-                        if (firstElectric != null && lastElectric != null) {
-                            startElectric = firstElectric
-                            endElectric = lastElectric
-                        }
-
-                        if (firstWater != null && lastWater != null) {
-                            startWater = firstWater
-                            endWater = lastWater
-                        }
+                    // Validation: Kiểm tra selectedMonth có hợp lệ không
+                    if (selectedMonth.isBlank() || !selectedMonth.matches(Regex("\\d{4}-\\d{2}"))) {
+                        Log.e(TAG, "Invalid selectedMonth in loadUsageData: '$selectedMonth'")
+                        return
                     }
 
-                    val usedElectric = if (startElectric != null && endElectric != null)
-                        endElectric - startElectric else 0
+                    // Logic mới: giống ChartFragment và HomeFragment
+                    val prevMonth = Calendar.getInstance().apply {
+                        val parts = selectedMonth.split("-")
+                        if (parts.size < 2) {
+                            Log.e(TAG, "Invalid selectedMonth format in loadUsageData: '$selectedMonth'")
+                            return@apply
+                        }
+                        try {
+                            set(Calendar.YEAR, parts[0].toInt())
+                            set(Calendar.MONTH, parts[1].toInt() - 1)
+                            add(Calendar.MONTH, -1)
+                        } catch (e: NumberFormatException) {
+                            Log.e(TAG, "Error parsing selectedMonth in loadUsageData: '$selectedMonth'", e)
+                            return@apply
+                        }
+                    }
+                    val prevMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(prevMonth.time)
+                    
+                    // Lấy dữ liệu tháng hiện tại và tháng trước
+                    val currentMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
+                    val prevMonthData = mutableMapOf<String, Pair<Int?, Int?>>()
+                    
+                    // Thu thập dữ liệu từ snapshot
+                    for (dateSnapshot in snapshot.children) {
+                        val dateKey = dateSnapshot.key ?: continue
+                        val electric = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                        val water = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                        
+                        when {
+                            dateKey.startsWith(selectedMonth) -> {
+                                currentMonthData[dateKey] = Pair(electric, water)
+                            }
+                            dateKey.startsWith(prevMonthKey) -> {
+                                prevMonthData[dateKey] = Pair(electric, water)
+                            }
+                        }
+                    }
+                    
+                    Log.d(TAG, "Current month data: $currentMonthData")
+                    Log.d(TAG, "Previous month data: $prevMonthData")
+                    
+                    // Tính consumption cho điện
+                    val usedElectric = calculateMonthlyConsumption(
+                        currentMonthData, prevMonthData, true
+                    )
+                    
+                    // Tính consumption cho nước  
+                    val usedWater = calculateMonthlyConsumption(
+                        currentMonthData, prevMonthData, false
+                    )
 
-                    val usedWater = if (startWater != null && endWater != null)
-                        endWater - startWater else 0
-
-                    Log.d(TAG, "usedElectric: $usedElectric, usedWater: $usedWater")
+                    Log.d(TAG, "Final consumption - Electric: $usedElectric, Water: $usedWater")
 
                     val electricCost = usedElectric * 3300
                     val waterCost = usedWater * 15000
@@ -983,6 +1022,52 @@ class PayFragment : Fragment(), SharedDataManager.DataUpdateListener {
             roomsRef.child(roomNumber).child("history")
                 .addListenerForSingleValueEvent(listener)
         }
+    }
+    
+    /**
+     * Tính consumption tháng theo logic giống ChartFragment và HomeFragment
+     */
+    private fun calculateMonthlyConsumption(
+        currentMonthData: Map<String, Pair<Int?, Int?>>,
+        prevMonthData: Map<String, Pair<Int?, Int?>>,
+        isElectric: Boolean
+    ): Int {
+        val type = if (isElectric) "ELECTRIC" else "WATER"
+        Log.d(TAG, "=== Calculating $type consumption ===")
+        
+        // Extract values cho loại cần tính
+        val currentValues = currentMonthData.values
+            .mapNotNull { if (isElectric) it.first else it.second }
+            .sorted()
+            
+        val prevValues = prevMonthData.values
+            .mapNotNull { if (isElectric) it.first else it.second }
+            .sorted()
+        
+        Log.d(TAG, "$type - Current month values: $currentValues")
+        Log.d(TAG, "$type - Previous month values: $prevValues")
+        
+        if (currentValues.isEmpty()) {
+            Log.d(TAG, "$type - No current data, returning 0")
+            return 0
+        }
+        
+        val currentMaxValue = currentValues.maxOrNull() ?: 0
+        val prevMonthLastValue = prevValues.lastOrNull()
+        
+        val result = if (prevMonthLastValue != null) {
+            // Trường hợp bình thường: có dữ liệu tháng trước
+            Log.d(TAG, "$type - Normal case: $currentMaxValue - $prevMonthLastValue = ${currentMaxValue - prevMonthLastValue}")
+            currentMaxValue - prevMonthLastValue
+        } else {
+            // Trường hợp đặc biệt: không có dữ liệu tháng trước
+            val currentMinValue = currentValues.minOrNull() ?: 0
+            Log.d(TAG, "$type - Special case: $currentMaxValue - $currentMinValue = ${currentMaxValue - currentMinValue}")
+            currentMaxValue - currentMinValue
+        }
+        
+        Log.d(TAG, "$type - Final result: $result")
+        return maxOf(0, result) // Đảm bảo không âm
     }
 
     private fun openPaymentLink() {

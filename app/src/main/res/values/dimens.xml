@@ -5,4 +5,12 @@
     <dimen name="til_radius">10dp</dimen>
     <dimen name="navigation_bar_icon_size">40dp</dimen>
     <dimen name="radio_button_width">60dp</dimen>
+    
+    <!-- Button Dimensions -->
+    <dimen name="button_height">64dp</dimen>
+    <dimen name="button_radius">12dp</dimen>
+    <dimen name="button_text_size">16sp</dimen>
+    <dimen name="button_margin_vertical">16dp</dimen>
+    <dimen name="button_padding_vertical">16dp</dimen>
+    <dimen name="button_padding_horizontal">24dp</dimen>
 </resources>

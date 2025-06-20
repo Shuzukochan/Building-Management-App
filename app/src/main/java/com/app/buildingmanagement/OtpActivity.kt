@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.app.buildingmanagement.databinding.ActivityOtpBinding
 import com.google.firebase.FirebaseException
@@ -93,7 +94,7 @@ class OtpActivity : BaseActivity() {
 
         binding?.resendTextView?.visibility = View.VISIBLE
         binding?.resendTextView?.isEnabled = false
-        binding?.resendTextView?.setTextColor(getColor(android.R.color.darker_gray))
+        binding?.resendTextView?.setTextColor(ContextCompat.getColor(this, R.color.nav_unselected))
 
         countDownTimer = object : CountDownTimer(60000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -104,7 +105,7 @@ class OtpActivity : BaseActivity() {
             override fun onFinish() {
                 binding?.resendTextView?.text = "Gửi lại mã OTP"
                 binding?.resendTextView?.isEnabled = true
-                binding?.resendTextView?.setTextColor(getColor(android.R.color.holo_blue_dark))
+                binding?.resendTextView?.setTextColor(ContextCompat.getColor(this@OtpActivity, R.color.textinput_border_focused))
             }
         }.start()
     }

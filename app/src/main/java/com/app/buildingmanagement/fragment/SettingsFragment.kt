@@ -17,6 +17,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +31,7 @@ import com.app.buildingmanagement.data.SharedDataManager
 import com.app.buildingmanagement.firebase.FCMHelper
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -258,14 +260,20 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showLogoutConfirmation() {
-        AlertDialog.Builder(requireContext())
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle("Đăng xuất")
             .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
             .setPositiveButton("Đăng xuất") { _, _ ->
                 performLogout()
             }
             .setNegativeButton("Hủy", null)
-            .show()
+            .create()
+            
+        dialog.show()
+        
+        // Đảm bảo màu nút hiển thị rõ ràng
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.error_color))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(requireContext(), R.color.nav_unselected))
     }
 
     private fun performLogout() {

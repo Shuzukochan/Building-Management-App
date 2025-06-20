@@ -36,5 +36,15 @@
 
     <!-- Navigation Colors -->
     <color name="navigation_ripple_color">#1A6750A4</color>
+    
+    <!-- TextInputLayout Colors -->
+    <color name="textinput_box_stroke_color">#2196F3</color>
+    <color name="textinput_hint_color">#9E9E9E</color>
+    <color name="textinput_border_light">#E0E0E0</color> <!-- Màu border nhẹ -->
+    <color name="textinput_border_focused">#1976D2</color> <!-- Màu border khi focus - xanh đậm hơn -->
+    
+    <!-- Button Colors -->
+    <color name="button_primary">#4A91F2</color> <!-- Màu nút chính phù hợp với app -->
+    <color name="button_primary_pressed">#3B7DD8</color> <!-- Màu khi bấm -->
 
 </resources>

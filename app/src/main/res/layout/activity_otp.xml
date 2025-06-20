@@ -26,7 +26,7 @@
         android:layout_marginStart="20dp"
         android:text="Nhập OTP"
         android:textColor="@color/black"
-        android:textSize="40sp"
+        android:textSize="36sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -60,16 +60,24 @@
             android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput1"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center"
                 android:inputType="number"
                 android:maxLength="1"
                 android:textSize="22sp"
+                android:textColor="@color/black"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:importantForAccessibility="yes" />
@@ -79,35 +87,51 @@
             android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput2"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:gravity="center"
                 android:importantForAccessibility="yes"
                 android:inputType="number"
                 android:maxLength="1"
-                android:textSize="22sp" />
+                android:textSize="22sp"
+                android:textColor="@color/black" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput3"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center"
                 android:inputType="number"
                 android:maxLength="1"
                 android:textSize="22sp"
+                android:textColor="@color/black"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:importantForAccessibility="yes" />
@@ -117,16 +141,24 @@
             android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput4"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center"
                 android:inputType="number"
                 android:maxLength="1"
                 android:textSize="22sp"
+                android:textColor="@color/black"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:importantForAccessibility="yes" />
@@ -136,16 +168,24 @@
             android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput5"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center"
                 android:inputType="number"
                 android:maxLength="1"
                 android:textSize="22sp"
+                android:textColor="@color/black"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:importantForAccessibility="yes" />
@@ -154,45 +194,60 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="50dp"
             android:layout_height="wrap_content"
-            app:boxStrokeWidth="2dp">
+            style="@style/CustomTextInputLayoutStyle"
+            app:boxStrokeColor="@color/textinput_border_focused"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusBottomEnd="@dimen/til_radius"
+            app:boxCornerRadiusBottomStart="@dimen/til_radius"
+            app:boxCornerRadiusTopEnd="@dimen/til_radius"
+            app:boxCornerRadiusTopStart="@dimen/til_radius">
 
-            <EditText
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/otpInput6"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:gravity="center"
                 android:inputType="number"
                 android:maxLength="1"
                 android:textSize="22sp"
+                android:textColor="@color/black"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:importantForAccessibility="yes" />
         </com.google.android.material.textfield.TextInputLayout>
     </LinearLayout>
 
-    <androidx.appcompat.widget.AppCompatButton
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSubmitOtp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="20dp"
-        android:background="@drawable/button_bg"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginStart="@dimen/start_end_margin"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="@dimen/start_end_margin"
+        android:backgroundTint="@color/button_primary"
         android:text="Xác nhận"
         android:textColor="@color/white"
-        android:textSize="22sp"
+        android:textSize="20sp"
         android:textStyle="bold"
+        android:textAllCaps="false"
+        android:padding="0dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minHeight="64dp"
+        android:gravity="center"
+        android:elevation="2dp"
+        app:cornerRadius="@dimen/button_radius"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/otpInputLayout" />
-
 
     <TextView
         android:id="@+id/resendTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Gửi lại mã OTP"
-        android:textColor="@android:color/holo_blue_dark"
+        android:textColor="@color/textinput_border_focused"
         android:textSize="14sp"
         android:textStyle="bold"
         android:visibility="gone"
@@ -200,6 +255,5 @@
         app:layout_constraintTop_toBottomOf="@id/btnSubmitOtp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>

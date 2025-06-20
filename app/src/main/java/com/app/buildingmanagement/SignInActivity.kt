@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.app.buildingmanagement.databinding.ActivitySignInBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -93,7 +94,7 @@ class SignInActivity : BaseActivity() {
     }
 
     private fun showNotificationPermissionDialog() {
-        AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Cho phép thông báo")
             .setMessage("Ứng dụng cần quyền thông báo để:\n\n" +
                     "• Thông báo thanh toán hóa đơn\n" +
@@ -107,7 +108,13 @@ class SignInActivity : BaseActivity() {
                 handleNotificationPermissionDenied()
             }
             .setCancelable(false)
-            .show()
+            .create()
+        
+        dialog.show()
+        
+        // Đảm bảo màu nút hiển thị rõ ràng
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(this, R.color.nav_selected))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(this, R.color.nav_unselected))
     }
 
     private fun requestNotificationPermission() {

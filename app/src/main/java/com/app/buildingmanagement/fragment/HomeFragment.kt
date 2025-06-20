@@ -143,13 +143,13 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         var latestElectric = -1
         var latestWater = -1
-        var startOfMonthElectric: Int? = null
-        var startOfMonthWater: Int? = null
-        var endOfMonthElectric: Int? = null
-        var endOfMonthWater: Int? = null
         var roomNumber: String? = null
 
         val currentMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+        val prevMonth = Calendar.getInstance().apply {
+            add(Calendar.MONTH, -1)
+        }
+        val prevMonthKey = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(prevMonth.time)
 
         // Duyệt qua tất cả các phòng
         for (roomSnapshot in snapshot.children) {
@@ -191,51 +191,92 @@ class HomeFragment : Fragment(), SharedDataManager.DataUpdateListener {
                     if (electricValue != null) latestElectric = electricValue
                 }
 
-                // Lấy dữ liệu tháng hiện tại từ history
+                // Tính consumption theo logic mới (giống ChartFragment)
                 val historySnapshot = roomSnapshot.child("history")
-                val monthDates = historySnapshot.children
-                    .mapNotNull { it.key }
-                    .filter { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && it.startsWith(currentMonth) }
-                    .sorted()
-
-                if (monthDates.isNotEmpty()) {
-                    val firstDay = monthDates.first()
-                    val lastDay = monthDates.last()
-
-                    val firstSnapshot = historySnapshot.child(firstDay)
-                    val lastSnapshot = historySnapshot.child(lastDay)
-
-                    val firstElectric = firstSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-                    val lastElectric = lastSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-
-                    val firstWater = firstSnapshot.child("water").getValue(Long::class.java)?.toInt()
-                    val lastWater = lastSnapshot.child("water").getValue(Long::class.java)?.toInt()
-
-                    if (firstElectric != null && lastElectric != null) {
-                        startOfMonthElectric = firstElectric
-                        endOfMonthElectric = lastElectric
-                    }
-
-                    if (firstWater != null && lastWater != null) {
-                        startOfMonthWater = firstWater
-                        endOfMonthWater = lastWater
-                    }
+                
+                // Lấy tất cả dữ liệu history
+                val allHistoryData = mutableMapOf<String, Pair<Int?, Int?>>() // date -> (electric, water)
+                for (dateSnapshot in historySnapshot.children) {
+                    val dateKey = dateSnapshot.key ?: continue
+                    val electric = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
+                    val water = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
+                    allHistoryData[dateKey] = Pair(electric, water)
                 }
+                
+                // Tính consumption cho điện
+                val electricUsed = calculateMonthlyConsumption(allHistoryData, currentMonth, prevMonthKey, true)
+                
+                // Tính consumption cho nước  
+                val waterUsed = calculateMonthlyConsumption(allHistoryData, currentMonth, prevMonthKey, false)
+
+                // Hide loading state và update UI
+                hideLoadingState()
+                updateUI(roomNumber, latestElectric, latestWater, electricUsed, waterUsed, fromCache)
+                isDataLoaded = true
                 break
             }
         }
+    }
 
-        // Tính toán tiêu thụ tháng hiện tại
-        val electricUsed = if (startOfMonthElectric != null && endOfMonthElectric != null)
-            endOfMonthElectric - startOfMonthElectric else 0
-
-        val waterUsed = if (startOfMonthWater != null && endOfMonthWater != null)
-            endOfMonthWater - startOfMonthWater else 0
-
-        // Hide loading state và update UI
-        hideLoadingState()
-        updateUI(roomNumber, latestElectric, latestWater, electricUsed, waterUsed, fromCache)
-        isDataLoaded = true
+    /**
+     * Tính consumption tháng theo logic giống ChartFragment
+     */
+    private fun calculateMonthlyConsumption(
+        allHistoryData: Map<String, Pair<Int?, Int?>>, 
+        currentMonth: String, 
+        prevMonthKey: String, 
+        isElectric: Boolean
+    ): Int {
+        val type = if (isElectric) "ELECTRIC" else "WATER"
+        Log.d(TAG, "=== Calculating $type consumption for month $currentMonth ===")
+        
+        // Lấy dữ liệu tháng hiện tại
+        val currentMonthData = allHistoryData
+            .filterKeys { it.startsWith(currentMonth) }
+            .toSortedMap()
+        
+        // Lấy dữ liệu tháng trước
+        val prevMonthData = allHistoryData
+            .filterKeys { it.startsWith(prevMonthKey) }
+            .toSortedMap()
+        
+        Log.d(TAG, "$type - Current month data: $currentMonthData")
+        Log.d(TAG, "$type - Previous month data: $prevMonthData")
+        
+        // Lấy giá trị cần thiết
+        val currentValues = currentMonthData.values.mapNotNull { 
+            if (isElectric) it.first else it.second 
+        }
+        val prevValues = prevMonthData.values.mapNotNull { 
+            if (isElectric) it.first else it.second 
+        }
+        
+        Log.d(TAG, "$type - Current month values: $currentValues")
+        Log.d(TAG, "$type - Previous month values: $prevValues")
+        
+        if (currentValues.isEmpty()) {
+            Log.d(TAG, "$type - No current month data, returning 0")
+            return 0
+        }
+        
+        val currentMaxValue = currentValues.maxOrNull() ?: 0
+        val prevMonthLastValue = prevValues.lastOrNull()
+        
+        Log.d(TAG, "$type - Current max value: $currentMaxValue")
+        Log.d(TAG, "$type - Previous month last value: $prevMonthLastValue")
+        
+        return if (prevMonthLastValue != null) {
+            // Trường hợp bình thường: cao nhất tháng này - cuối tháng trước
+            val result = currentMaxValue - prevMonthLastValue
+            Log.d(TAG, "$type - Normal case: $currentMaxValue - $prevMonthLastValue = $result")
+            result
+        } else {
+            // Trường hợp đặc biệt: cao nhất tháng này - thấp nhất tháng này
+            val currentMinValue = currentValues.minOrNull() ?: 0
+            val result = currentMaxValue - currentMinValue
+            Log.d(TAG, "$type - Special case: $currentMaxValue - $currentMinValue = $result")
+            result
+        }
     }
 
     // Implement DataUpdateListener methods
