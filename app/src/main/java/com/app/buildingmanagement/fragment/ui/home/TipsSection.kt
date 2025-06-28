@@ -15,9 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
-import com.app.buildingmanagement.R
-import com.app.buildingmanagement.fragment.ui.home.HomeConstants
 
 @Composable
 fun TipsSection(tipsCardPadding: Dp) {

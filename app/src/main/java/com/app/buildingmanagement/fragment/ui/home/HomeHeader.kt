@@ -11,9 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import com.app.buildingmanagement.R
-import com.app.buildingmanagement.fragment.ui.home.HomeConstants
 
 @Composable
 fun HeaderSection(roomNumber: String, titleTextSize: TextUnit, subtitleTextSize: TextUnit) {

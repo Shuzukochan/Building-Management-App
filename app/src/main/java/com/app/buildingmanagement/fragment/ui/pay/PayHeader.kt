@@ -17,17 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.unit.DpOffset
-import com.app.buildingmanagement.R
 
 @Composable
 fun PayHeader(
@@ -66,8 +61,7 @@ fun PayHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .clickable { expanded = true },
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -94,6 +88,7 @@ fun PayHeader(
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFF5F5F5))
+                        .clickable { expanded = true }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .onGloballyPositioned { coordinates ->
                             triggerWidth = with(density) { coordinates.size.width.toDp() }

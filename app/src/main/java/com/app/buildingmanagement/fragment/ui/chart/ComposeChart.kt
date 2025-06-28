@@ -20,8 +20,6 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -42,15 +40,12 @@ fun ComposeBarChart(
     barColor: Color = Color(0xFF2196F3),
     backgroundColor: Color = Color.White,
     chartHeight: Dp = 300.dp,
-    barWidth: Dp = 24.dp,
     showValues: Boolean = true,
-    showLabels: Boolean = true,
     animationDuration: Int = 1000,
     showGrid: Boolean = true,
     gradientBars: Boolean = true
 ) {
-    val density = LocalDensity.current
-    val animatedValues = remember(data) { 
+    val animatedValues = remember(data) {
         data.map { Animatable(0f) }
     }
     
@@ -69,8 +64,7 @@ fun ComposeBarChart(
     
     // Nếu tất cả value đều là 0, ép maxValue = 1f để luôn vẽ chart
     val allZero = data.all { it.value == 0f }
-    val maxValue = data.maxOfOrNull { it.value }?.takeIf { it > 0f } ?: 1f
-    val minValue = 0f
+
     
     Column(
         modifier = modifier
@@ -91,14 +85,10 @@ fun ComposeBarChart(
                 drawBarChart(
                     data = data,
                     animatedValues = animatedValues.map { it.value },
-                    maxValue = maxValue,
-                    minValue = minValue,
                     barColor = barColor,
-                    barWidth = barWidth,
                     showValues = showValues,
                     showGrid = showGrid,
-                    gradientBars = gradientBars,
-                    density = density
+                    gradientBars = gradientBars
                 )
             }
             // Nếu tất cả value đều là 0, hiển thị thông báo
@@ -114,39 +104,23 @@ fun ComposeBarChart(
     }
 }
 
-@Composable
-fun EmptyChart(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(ChartConstants.ChartCornerRadius)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Không có dữ liệu",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF999999)
-        )
-    }
-}
-
 private fun DrawScope.drawBarChart(
     data: List<ChartData>,
     animatedValues: List<Float>,
-    maxValue: Float,
-    minValue: Float,
     barColor: Color,
-    barWidth: Dp,
     showValues: Boolean,
     showGrid: Boolean,
-    gradientBars: Boolean,
-    density: Density
+    gradientBars: Boolean
 ) {
     if (data.isEmpty()) return
     
     val availableWidth = size.width
     val availableHeight = size.height - 40.dp.toPx() // Reserve space for values
     
+    // Calculate max/min values for proper scaling
+    val maxValue = data.maxOfOrNull { it.value }?.takeIf { it > 0f } ?: 1f
+    val minValue = 0f
+
     // Tính toán bar width dựa trên available space và số lượng data points
     val spacing = 12.dp.toPx() // Fixed spacing between bars
     val totalSpacing = spacing * (data.size - 1) + (spacing * 2) // spaces between bars + margins
@@ -158,7 +132,7 @@ private fun DrawScope.drawBarChart(
     
     // Draw grid lines if enabled
     if (showGrid) {
-        drawGridLines(availableHeight, maxValue, minValue)
+        drawGridLines(availableHeight)
     }
     
     data.forEachIndexed { index, chartData ->
@@ -198,7 +172,13 @@ private fun DrawScope.drawBarChart(
                 textAlign = android.graphics.Paint.Align.CENTER
                 isFakeBoldText = true
             }
-            val valueText = if (animatedValue < 10f) String.format("%.2f", animatedValue) else if (animatedValue < 100f) String.format("%.1f", animatedValue) else animatedValue.toInt().toString()
+            val valueText = if (animatedValue < 10f) {
+                String.format(java.util.Locale.getDefault(), "%.2f", animatedValue)
+            } else if (animatedValue < 100f) {
+                String.format(java.util.Locale.getDefault(), "%.1f", animatedValue)
+            } else {
+                animatedValue.toInt().toString()
+            }
             drawContext.canvas.nativeCanvas.drawText(
                 valueText,
                 startX + finalBarWidth / 2,
@@ -223,9 +203,7 @@ private fun DrawScope.drawBarChart(
 }
 
 private fun DrawScope.drawGridLines(
-    availableHeight: Float,
-    maxValue: Float,
-    minValue: Float
+    availableHeight: Float
 ) {
     val gridColor = Color(0xFFE0E0E0)
     val gridLineCount = 5
@@ -281,12 +259,10 @@ fun UsageChart(
             },
             barColor = chartColor,
             chartHeight = chartHeight,
-            barWidth = ChartConstants.BarWidth,
             showValues = true,
-            showLabels = true,
             showGrid = true,
             gradientBars = true,
-            animationDuration = ChartConstants.DefaultAnimationDuration
+            animationDuration = ChartConstants.DEFAULT_ANIMATION_DURATION
         )
     }
 }
@@ -298,8 +274,10 @@ private fun processChartData(
     mode: String
 ): List<Pair<String, Float>> {
     val dateFormatter = if (mode == "Ngày") {
+        @Suppress("DEPRECATION")
         java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("vi", "VN"))
     } else {
+        @Suppress("DEPRECATION")
         java.text.SimpleDateFormat("MM/yyyy", java.util.Locale("vi", "VN"))
     }
     val firebaseFormatter = if (mode == "Ngày") {
@@ -333,7 +311,7 @@ private fun processChartData(
             }
         }
         return result
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         return emptyList()
     }
 }

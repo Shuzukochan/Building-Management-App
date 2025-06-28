@@ -9,6 +9,13 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import com.app.buildingmanagement.fragment.ui.settings.ComposeSettings
 
+@androidx.compose.runtime.Composable
+fun SettingsScreen(
+    onNavigateBack: () -> Unit = {}
+) {
+    ComposeSettings(onNavigateBack = onNavigateBack)
+}
+
 class SettingsFragment : Fragment() {
 
     override fun onCreateView(

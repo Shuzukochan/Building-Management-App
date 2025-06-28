@@ -4,11 +4,11 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.app.buildingmanagement.MainActivity
 import com.app.buildingmanagement.SignInActivity
 import com.app.buildingmanagement.data.FirebaseDataState
@@ -32,40 +32,42 @@ fun handleNotificationToggle(
     updateState: (Boolean) -> Unit
 ) {
     if (enabled) {
+        // Người dùng muốn BẬT thông báo
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Đã có quyền -> bật thông báo và đăng ký topic
                     updateState(true)
                     val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                    sharedPref.edit().putBoolean("notifications_enabled", true).apply()
-                    // Loại bỏ prefix "Phòng " trước khi đăng ký FCM topic
+                    sharedPref.edit { putBoolean("notifications_enabled", true) }
                     val cleanRoomNumber = FirebaseDataState.roomNumber.replace("Phòng ", "")
                     FCMHelper.subscribeToUserBuildingTopics(cleanRoomNumber)
                     Toast.makeText(context, "Đã bật thông báo", Toast.LENGTH_SHORT).show()
                 }
                 else -> {
+                    // Chưa có quyền -> hiển thị dialog xin quyền
                     showNotificationPermissionDialog(context) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
             }
         } else {
+            // Android < 13 không cần quyền POST_NOTIFICATIONS
             updateState(true)
             val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            sharedPref.edit().putBoolean("notifications_enabled", true).apply()
-            // Loại bỏ prefix "Phòng " trước khi đăng ký FCM topic
+            sharedPref.edit { putBoolean("notifications_enabled", true) }
             val cleanRoomNumber = FirebaseDataState.roomNumber.replace("Phòng ", "")
             FCMHelper.subscribeToUserBuildingTopics(cleanRoomNumber)
             Toast.makeText(context, "Đã bật thông báo", Toast.LENGTH_SHORT).show()
         }
     } else {
+        // Người dùng muốn TẮT thông báo -> hủy đăng ký topic
         updateState(false)
         val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        sharedPref.edit().putBoolean("notifications_enabled", false).apply()
-        // Loại bỏ prefix "Phòng " trước khi hủy đăng ký FCM topic
+        sharedPref.edit { putBoolean("notifications_enabled", false) }
         val cleanRoomNumber = FirebaseDataState.roomNumber.replace("Phòng ", "")
         FCMHelper.unsubscribeFromBuildingTopics(cleanRoomNumber)
         Toast.makeText(context, "Đã tắt thông báo", Toast.LENGTH_SHORT).show()
@@ -79,19 +81,6 @@ fun showNotificationPermissionDialog(context: Context, onAccept: () -> Unit) {
         .setPositiveButton("Cho phép") { _, _ -> onAccept() }
         .setNegativeButton("Từ chối", null)
         .show()
-}
-
-// ============================================================================
-// PHONE & DIALER UTILS
-// ============================================================================
-
-fun openDialer(context: Context, phoneNumber: String) {
-    try {
-        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phoneNumber"))
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        Toast.makeText(context, "Không thể mở ứng dụng gọi điện", Toast.LENGTH_SHORT).show()
-    }
 }
 
 // ============================================================================
@@ -111,7 +100,7 @@ fun showLogoutConfirmation(context: Context, auth: FirebaseAuth, onNavigateBack:
 
 fun performLogout(context: Context, auth: FirebaseAuth, onNavigateBack: () -> Unit) {
     try {
-        // Unsubscribe from notifications - loại bỏ prefix "Phòng " để đảm bảo topic name khớp
+        // Unsubscribe from notifications
         val cleanRoomNumber = FirebaseDataState.roomNumber.replace("Phòng ", "")
         FCMHelper.unsubscribeFromBuildingTopics(cleanRoomNumber)
 
@@ -133,7 +122,7 @@ fun performLogout(context: Context, auth: FirebaseAuth, onNavigateBack: () -> Un
         
         onNavigateBack()
         
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Toast.makeText(context, "Có lỗi xảy ra khi đăng xuất", Toast.LENGTH_SHORT).show()
     }
 }
@@ -141,14 +130,14 @@ fun performLogout(context: Context, auth: FirebaseAuth, onNavigateBack: () -> Un
 fun clearAllSharedPreferences(context: Context) {
     try {
         val appSettings = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        appSettings.edit().clear().apply()
-        
+        appSettings.edit { clear() }
+
         val appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        appPrefs.edit().clear().apply()
-        
+        appPrefs.edit { clear() }
+
         val fcmPrefs = context.getSharedPreferences("fcm_prefs", Context.MODE_PRIVATE)
-        fcmPrefs.edit().clear().apply()
-    } catch (e: Exception) {
+        fcmPrefs.edit { clear() }
+    } catch (_: Exception) {
         // Handle error silently
     }
 }
@@ -176,9 +165,9 @@ fun submitFeedback(context: Context, feedback: String, isAnonymous: Boolean) {
         )
     } else {
         hashMapOf(
-            "roomNumber" to (FirebaseDataState.roomNumber.replace("Phòng ", "") ?: "unknown"),
+            "roomNumber" to FirebaseDataState.roomNumber.replace("Phòng ", ""),
             "phone" to (user?.phoneNumber ?: "unknown"),
-            "userName" to (FirebaseDataState.userName ?: "unknown"),
+            "userName" to FirebaseDataState.userName,
             "feedback" to feedback,
         )
     }
@@ -214,6 +203,7 @@ fun submitFeedback(context: Context, feedback: String, isAnonymous: Boolean) {
 // ============================================================================
 
 fun formatCurrency(amount: Long): String {
+    @Suppress("DEPRECATION")
     return NumberFormat.getNumberInstance(Locale("vi", "VN")).format(amount) + " VNĐ"
 }
 
@@ -223,17 +213,7 @@ fun formatTimestamp(timestamp: String): String {
         val outputFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         val date = inputFormat.parse(timestamp)
         date?.let { outputFormat.format(it) } ?: timestamp
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         timestamp
     }
-}
-
-// ============================================================================
-// DEBUG UTILS - XÓA KHI RELEASE
-// ============================================================================
-
-fun resetNotificationPermissionFlag(context: Context) {
-    val appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    appPrefs.edit().putBoolean("notification_permission_requested", false).apply()
-    Toast.makeText(context, "Đã reset flag notification permission", Toast.LENGTH_SHORT).show()
 }

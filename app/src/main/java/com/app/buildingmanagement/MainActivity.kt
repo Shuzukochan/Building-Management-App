@@ -10,11 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.rememberNavController
-import com.app.buildingmanagement.firebase.FCMHelper
 import com.app.buildingmanagement.navigation.AppBottomNavigation
 import com.app.buildingmanagement.navigation.AppNavigationHost
 import com.app.buildingmanagement.ui.theme.BuildingManagementTheme
@@ -25,9 +22,6 @@ import com.google.firebase.ktx.Firebase
 class MainActivity : ComponentActivity() {
 
     private var auth: FirebaseAuth? = null
-
-    private val fcmPrefs = "fcm_prefs"
-    private val fcmTokenKey = "fcm_token"
     private val notificationTypeMaintenance = "maintenance_request"
     private val notificationTypePayment = "payment_reminder"
     private val notificationTypeAnnouncement = "announcement"
@@ -86,7 +80,7 @@ class MainActivity : ComponentActivity() {
             }
             startActivity(intent)
             finish()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             finish()
         }
     }
@@ -110,28 +104,28 @@ class MainActivity : ComponentActivity() {
                     navigateToAnnouncementScreen()
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
 
     private fun navigateToMaintenanceScreen() {
         try {
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
 
     private fun navigateToPaymentScreen() {
         try {
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
 
     private fun navigateToAnnouncementScreen() {
         try {
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
@@ -157,61 +151,18 @@ class MainActivity : ComponentActivity() {
             com.app.buildingmanagement.data.FirebaseDataState.cleanup()
 
             auth = null
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
 
-    fun onUserLogout() {
-        try {
-            val currentUser = auth?.currentUser
-            currentUser?.phoneNumber?.let {
-                cleanupFCMOnLogout()
-            }
 
-            clearAllMainActivityPreferences()
-            auth?.signOut()
-            redirectToSignIn()
-
-        } catch (e: Exception) {
-            redirectToSignIn()
-        }
-    }
-
-    private fun clearAllMainActivityPreferences() {
-        try {
-            val fcmPrefs = getSharedPreferences("fcm_prefs", MODE_PRIVATE)
-            fcmPrefs.edit().clear().apply()
-
-            val appSettings = getSharedPreferences("app_settings", MODE_PRIVATE)
-            appSettings.edit().clear().apply()
-
-        } catch (e: Exception) {
-            // Handle error silently
-        }
-    }
-
-    private fun cleanupFCMOnLogout() {
-        try {
-            // Lấy room number và loại bỏ prefix "Phòng " để đảm bảo topic name khớp
-            val cleanRoomNumber = com.app.buildingmanagement.data.FirebaseDataState.roomNumber.replace("Phòng ", "")
-            FCMHelper.unsubscribeFromBuildingTopics(cleanRoomNumber)
-
-            val sharedPref = getSharedPreferences(fcmPrefs, MODE_PRIVATE)
-            sharedPref.edit()
-                .remove(fcmTokenKey)
-                .apply()
-
-        } catch (e: Exception) {
-            // Handle error silently
-        }
-    }
 
     private fun initializeFirebaseData() {
         try {
             // Initialize global Firebase data state
             com.app.buildingmanagement.data.FirebaseDataState.initialize(this)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }

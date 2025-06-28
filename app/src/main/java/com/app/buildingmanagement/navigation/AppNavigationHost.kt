@@ -1,15 +1,14 @@
 package com.app.buildingmanagement.navigation
 
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.app.buildingmanagement.fragment.ui.settings.ComposeSettings
 import com.app.buildingmanagement.fragment.HomeScreen
 import com.app.buildingmanagement.fragment.ChartScreen
 import com.app.buildingmanagement.fragment.PaymentScreen
+import com.app.buildingmanagement.fragment.SettingsScreen
 
 @Composable
 fun AppNavigationHost(
@@ -34,12 +33,7 @@ fun AppNavigationHost(
         }
         
         composable(AppDestinations.SETTINGS) {
-            ComposeSettings(
-                onNavigateBack = {
-                    navController.navigateUp()
-                }
-            )
+            SettingsScreen()
         }
     }
 }
-

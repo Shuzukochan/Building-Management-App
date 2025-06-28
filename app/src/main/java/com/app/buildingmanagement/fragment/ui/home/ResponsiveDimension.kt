@@ -7,7 +7,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Data class cho các giá trị responsive
 data class ResponsiveDimension(
     val mainPadding: Dp,
     val headerMarginBottom: Dp,

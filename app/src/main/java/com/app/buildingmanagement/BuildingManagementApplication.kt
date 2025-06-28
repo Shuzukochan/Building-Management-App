@@ -16,7 +16,6 @@ class BuildingManagementApplication : Application() {
         
         initializeFirebaseAppCheck()
         
-        // Preload FirebaseDataState nếu user đã đăng nhập
         initializeDataStateIfAuthenticated()
     }
     
@@ -29,7 +28,7 @@ class BuildingManagementApplication : Application() {
                     FirebaseDataState.initialize(this@BuildingManagementApplication)
                 }, 500)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }
@@ -40,12 +39,11 @@ class BuildingManagementApplication : Application() {
                 if (BuildConfig.FIREBASE_APPCHECK_DEBUG_TOKEN.isNotEmpty()) {
                     System.setProperty("firebase.appcheck.debug.token", BuildConfig.FIREBASE_APPCHECK_DEBUG_TOKEN)
                 }
-                
                 FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
                     DebugAppCheckProviderFactory.getInstance()
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error silently
         }
     }

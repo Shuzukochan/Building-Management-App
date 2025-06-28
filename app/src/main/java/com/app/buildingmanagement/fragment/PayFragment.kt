@@ -26,8 +26,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.*
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -38,12 +36,12 @@ private fun hmacSha256(data: String): String {
         hmac.init(secretKeySpec)
         val hash = hmac.doFinal(data.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         return ""
-        }
     }
+}
 
-    @Composable
+@Composable
 fun PaymentScreen() {
     val context = LocalContext.current
     val database = remember { FirebaseDatabase.getInstance() }
@@ -112,10 +110,10 @@ fun PaymentScreen() {
                 noticeContent = "Vui lòng thanh toán hóa đơn tháng ${getDisplayMonth(forMonth)} để tránh gián đoạn dịch vụ."
             }
             PaymentStatus.NO_NEED -> {
-                 noteText = "Tháng này chưa có dữ liệu tiêu thụ."
-                 buttonEnabled = false
-                 buttonText = "Không cần thanh toán"
-                 noticeVisible = false
+                noteText = "Tháng này chưa có dữ liệu tiêu thụ."
+                buttonEnabled = false
+                buttonText = "Không cần thanh toán"
+                noticeVisible = false
             }
             else -> {}
         }
@@ -173,39 +171,39 @@ fun PaymentScreen() {
         } else if (totalCost <= 0) {
             Toast.makeText(context, "Số tiền thanh toán không hợp lệ", Toast.LENGTH_SHORT).show()
         } else {
-        val orderCode = (System.currentTimeMillis() / 1000).toInt()
+            val orderCode = (System.currentTimeMillis() / 1000).toInt()
             val description = "Thanh toan P$roomId T${selectedMonth.substring(5, 7)}"
             val dataToSign = "amount=$totalCost&cancelUrl=myapp://payment-cancel&description=$description&orderCode=$orderCode&returnUrl=myapp://payment-success"
 
-        val json = JSONObject().apply {
-            put("orderCode", orderCode)
+            val json = JSONObject().apply {
+                put("orderCode", orderCode)
                 put("amount", totalCost)
-            put("description", description)
+                put("description", description)
                 put("cancelUrl", "myapp://payment-cancel")
                 put("returnUrl", "myapp://payment-success")
                 put("signature", hmacSha256(dataToSign))
             }
             val requestBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder()
-            .url("https://api-merchant.payos.vn/v2/payment-requests")
-            .post(requestBody)
+            val request = Request.Builder()
+                .url("https://api-merchant.payos.vn/v2/payment-requests")
+                .post(requestBody)
                 .addHeader("x-client-id", BuildConfig.CLIENT_ID)
                 .addHeader("x-api-key", BuildConfig.API_KEY)
-            .build()
+                .build()
 
             OkHttpClient().newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
+                override fun onFailure(call: Call, e: IOException) {
                     (context as? Activity)?.runOnUiThread { Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_SHORT).show() }
-            }
+                }
 
-            override fun onResponse(call: Call, response: Response) {
+                override fun onResponse(call: Call, response: Response) {
                     (context as? Activity)?.runOnUiThread {
-                val body = response.body?.string()
-                if (!response.isSuccessful || body == null) {
+                        val body = response.body?.string()
+                        if (!response.isSuccessful || body == null) {
                             Toast.makeText(context, "Lỗi API: ${response.code}", Toast.LENGTH_SHORT).show()
                         } else {
-                try {
-                    val jsonResponse = JSONObject(body)
+                            try {
+                                val jsonResponse = JSONObject(body)
                                 if (jsonResponse.optString("code") != "00") {
                                     Toast.makeText(context, "Lỗi PayOS: ${jsonResponse.optString("desc")}", Toast.LENGTH_SHORT).show()
                                 } else {
@@ -247,11 +245,11 @@ fun PaymentScreen() {
             }
 
             val defaultMonth = FirebaseDataState.suggestedPaymentMonth.takeIf { it.isNotEmpty() && rawMonths.contains(it) } ?: rawMonths.lastOrNull() ?: ""
-            
+
             if (selectedMonth != defaultMonth) {
-                 selectedMonth = defaultMonth
+                selectedMonth = defaultMonth
             }
-            
+
             if (defaultMonth.isNotEmpty()) {
                 loadUsageData(defaultMonth)
             } else {
@@ -259,7 +257,7 @@ fun PaymentScreen() {
             }
         }
     }
-    
+
     // --- UI ---
     val dimen = responsiveDimension()
     Column(
@@ -273,7 +271,7 @@ fun PaymentScreen() {
                 CircularProgressIndicator()
             }
         } else if (monthKeys.isEmpty()) {
-             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Chưa có dữ liệu để thanh toán.", color = Color.Gray)
             }
         } else {

@@ -11,17 +11,12 @@ material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 firebaseDatabaseKtx = "21.0.0"
-firebase-bom = "33.15.0"
+firebase-bom = "33.16.0"
 firebaseAppcheckDebug = "18.0.0"
-firebaseMessaging = "24.1.1"
+firebaseMessaging = "24.1.2"
 okhttp = "4.12.0"
 webkit = "1.14.0"
-coroutines = "1.7.3"
-
-composee = "1.6.7"
-constraintlayout_compose = "1.1.1"
-fragment_ktx = "1.8.8"
-navigation_compose = "2.8.4"
+coroutines = "1.10.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -56,21 +51,21 @@ coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-
 
 
 # ConstraintLayout Compose
-constraintlayout-compose = { module = "androidx.constraintlayout:constraintlayout-compose", version.ref = "constraintlayout_compose" }
+constraintlayout-compose = { module = "androidx.constraintlayout:constraintlayout-compose", version = "1.1.1" }
 
 # Compose Material Icons
-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "composee" }
-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "composee" }
+compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 
 # Compose UI
-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref = "composee" }
-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "composee" }
+compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+compose-animation = { module = "androidx.compose.animation:animation" }
 
 # Fragment KTX
-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment_ktx" }
+fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.8.8" }
 
 # Navigation Compose
-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation_compose" }
+navigation-compose = { module = "androidx.navigation:navigation-compose", version = "2.9.0" }
 
 
 [plugins]

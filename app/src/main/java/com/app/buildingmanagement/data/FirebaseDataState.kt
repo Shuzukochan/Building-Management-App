@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -32,8 +33,8 @@ object FirebaseDataState {
     var roomNumber by mutableStateOf("--")
     var electricReading by mutableStateOf("-- kWh")
     var waterReading by mutableStateOf("-- m³")
-    var electricPrice by mutableStateOf(3300) // Default fallback
-    var waterPrice by mutableStateOf(15000) // Default fallback
+    var electricPrice by mutableIntStateOf(3300) // Default fallback
+    var waterPrice by mutableIntStateOf(15000) // Default fallback
     var isPricesLoaded by mutableStateOf(false)
     var isDataLoaded by mutableStateOf(false)
     var isLoading by mutableStateOf(true)
@@ -64,9 +65,6 @@ object FirebaseDataState {
         database = FirebaseDatabase.getInstance()
         phoneToRoomRef = database?.getReference("phone_to_room")
         cachePrefs = context.getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE)
-        
-        // Debug log
-        Log.d(TAG, "Initialized, checking phone...")
         
         // Load cache first để hiển thị instant
         loadFromCache()
@@ -105,10 +103,7 @@ object FirebaseDataState {
                 if (userName != "--") {
                     isUserDataLoaded = true
                 }
-                Log.d(TAG, "✅ Loaded from cache for $suffix: $roomNumber")
             }
-        } else {
-            Log.d(TAG, "🔄 Cache expired for $suffix, will load fresh data")
         }
     }
     
@@ -127,53 +122,26 @@ object FirebaseDataState {
             putLong(KEY_LAST_CACHE_TIME + "_" + suffix, System.currentTimeMillis())
             apply()
         }
-        Log.d(TAG, "💾 Saved to cache for $suffix: $roomNumber")
     }
     
     private fun startRealtimeDataLoading() {
         val auth = FirebaseAuth.getInstance()
         val rawPhone = auth.currentUser?.phoneNumber
         
-        Log.d(TAG, "Raw user phone = $rawPhone")
-        
         if (rawPhone == null) {
-            Log.d(TAG, "No phone number, setting error state")
             setErrorState()
             return
         }
         
         // Chuyển đổi phone number từ format quốc tế (+84...) sang format local (0...)
         val phone = convertPhoneFormat(rawPhone)
-        Log.d(TAG, "Converted phone = $phone")
-        
         currentUserPhone = phone
-        
-        // DEBUG: Test database connection first
-        testDatabaseConnection(phone)
         
         // Bước 1: Lấy thông tin phòng và building từ phone_to_room
         phoneEventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                Log.d(TAG, "Phone lookup data received: ${snapshot.exists()}")
-                if (snapshot.exists()) {
-                    Log.d(TAG, "Data content: ${snapshot.value}")
-                    Log.d(TAG, "Data keys: ${snapshot.children.map { it.key }}")
-                } else {
+                if (!snapshot.exists()) {
                     Log.e(TAG, "❌ Phone data NOT FOUND for: $phone")
-                    Log.d(TAG, "🔍 Checking phone_to_room root...")
-                    
-                    // Check if phone_to_room exists at all
-                    phoneToRoomRef?.addListenerForSingleValueEvent(object : ValueEventListener {
-                        override fun onDataChange(rootSnapshot: DataSnapshot) {
-                            Log.d(TAG, "phone_to_room root exists: ${rootSnapshot.exists()}")
-                            if (rootSnapshot.exists()) {
-                                Log.d(TAG, "Available phones: ${rootSnapshot.children.map { it.key }}")
-                            }
-                        }
-                        override fun onCancelled(error: DatabaseError) {
-                            Log.e(TAG, "Failed to check phone_to_room root: ${error.message}")
-                        }
-                    })
                 }
                 processPhoneToRoomData(snapshot, phone)
             }
@@ -184,34 +152,7 @@ object FirebaseDataState {
             }
         }
         
-        Log.d(TAG, "Setting up listener for phone: $phone")
         phoneToRoomRef?.child(phone)?.addValueEventListener(phoneEventListener!!)
-    }
-    
-    private fun testDatabaseConnection(phone: String) {
-        database?.getReference("phone_to_room")?.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                Log.d(TAG, "🔍 phone_to_room root - exists: ${snapshot.exists()}, children: ${snapshot.childrenCount}")
-                if (snapshot.exists()) {
-                    Log.d(TAG, "Available phone numbers:")
-                    snapshot.children.forEach { child ->
-                        Log.d(TAG, "  - ${child.key}")
-                    }
-                    
-                    // Kiểm tra xem phone có tồn tại không
-                    if (snapshot.hasChild(phone)) {
-                        Log.d(TAG, "✅ Phone $phone exists in database")
-                        val phoneData = snapshot.child(phone)
-                        Log.d(TAG, "Phone data: buildingId=${phoneData.child("buildingId").value}, roomId=${phoneData.child("roomId").value}")
-                    } else {
-                        Log.e(TAG, "❌ Phone $phone NOT found in database")
-                    }
-                }
-            }
-            override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Database test failed: ${error.message}")
-            }
-        })
     }
 
     private fun convertPhoneFormat(internationalPhone: String): String {
@@ -227,8 +168,6 @@ object FirebaseDataState {
 
     private fun processPhoneToRoomData(snapshot: DataSnapshot, userPhone: String) {
         if (!snapshot.exists()) {
-            Log.d(TAG, "Phone data not found in phone_to_room, trying fallback...")
-            // FALLBACK: Thử tìm trong old structure rooms
             tryFallbackOldStructure(userPhone)
             return
         }
@@ -237,47 +176,36 @@ object FirebaseDataState {
         val roomId = snapshot.child("roomId").getValue(String::class.java)
         val name = snapshot.child("name").getValue(String::class.java)
         
-        Log.d(TAG, "Found buildingId = $buildingIdValue, roomId = $roomId, name = $name")
-        
+
         if (name != null) {
             userName = name
             isUserDataLoaded = true
         }
         
         if (buildingIdValue == null || roomId == null) {
-            Log.d(TAG, "Missing buildingId or roomId, trying fallback...")
             tryFallbackOldStructure(userPhone)
             return
         }
         
         currentBuildingId = buildingIdValue
-        buildingId = buildingIdValue // Cập nhật state
+        buildingId = buildingIdValue
         currentRoomId = roomId
         
-        // *** HIỂN thị room number NGAY LẬP TỨC ***
         roomNumber = "Phòng $roomId"
-        isLoading = false  // Dừng loading ngay khi có room number
-        Log.d(TAG, "Room number set immediately: Phòng $roomId")
-        
-        // Bước 2: Load building prices và setup room data listener
+        isLoading = false
+
         loadBuildingPrices(buildingIdValue)
         setupRoomDataListener(buildingIdValue, roomId)
     }
 
     private fun tryFallbackOldStructure(userPhone: String) {
-        Log.d(TAG, "🔄 Trying fallback to old structure...")
-        
-        // Thử tìm user trong rooms (old structure)
         val roomsRef = database?.getReference("rooms")
         
         roomsRef?.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                Log.d(TAG, "Old rooms structure - exists: ${snapshot.exists()}, children: ${snapshot.childrenCount}")
-                
+                var foundUserName: String? = null
                 var foundBuildingId: String? = null
                 var foundRoom: String? = null
-                var foundRoomSnapshot: DataSnapshot? = null
-                var foundUserName: String? = null
 
                 snapshot.children.forEach { buildingSnapshot ->
                     val roomsSnapshot = buildingSnapshot.child("rooms")
@@ -289,7 +217,6 @@ object FirebaseDataState {
                             if (phoneInTenant == userPhone) {
                                 foundBuildingId = buildingSnapshot.key
                                 foundRoom = roomSnapshot.key
-                                foundRoomSnapshot = roomSnapshot
                                 foundUserName = tenantSnapshot.child("name").getValue(String::class.java)
                                 break
                             }
@@ -299,8 +226,7 @@ object FirebaseDataState {
                 }
 
                 if (foundBuildingId != null && foundRoom != null && foundUserName != null) {
-                    Log.d(TAG, "Fallback found user: $foundUserName in room $foundRoom, building $foundBuildingId")
-                    userName = foundUserName ?: "--"
+                    userName = foundUserName
                     isUserDataLoaded = true
                     roomNumber = "Phòng $foundRoom"
                     isDataLoaded = true
@@ -308,39 +234,32 @@ object FirebaseDataState {
                     currentBuildingId = foundBuildingId
                     buildingId = foundBuildingId
                     currentRoomId = foundRoom
-                    setupRoomDataListener(foundBuildingId!!, foundRoom!!)
-                    loadBuildingPrices(foundBuildingId!!)
+                    setupRoomDataListener(foundBuildingId, foundRoom)
+                    loadBuildingPrices(foundBuildingId)
                     saveToCache()
                 } else {
-                    Log.e(TAG, "User not found in fallback structure.")
                     setErrorState()
                 }
             }
             
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Fallback search cancelled: ${error.message}")
                 setErrorState()
             }
         })
     }
 
     private fun setupRoomDataListener(buildingId: String, roomId: String) {
-        // Cleanup listener cũ nếu có
         roomEventListener?.let { listener ->
             roomDataRef?.removeEventListener(listener)
         }
         
-        val roomPath = "buildings/$buildingId/rooms/$roomId"
-        Log.d(TAG, "Setting up room listener for path: $roomPath")
-        
+
         roomDataRef = database?.getReference("buildings")?.child(buildingId)?.child("rooms")?.child(roomId)
         
         roomEventListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                Log.d(TAG, "Room data received: ${snapshot.exists()}")
-                processRoomData(snapshot, roomId)
+                processRoomData(snapshot)
                 
-                // Kiểm tra payment status và suggest month cho PayFragment
                 checkPaymentStatusAndSuggestMonth(buildingId, roomId)
             }
 
@@ -353,21 +272,17 @@ object FirebaseDataState {
         roomDataRef?.addValueEventListener(roomEventListener!!)
     }
 
-    private fun processRoomData(roomSnapshot: DataSnapshot, roomId: String) {
+    private fun processRoomData(roomSnapshot: DataSnapshot) {
         if (!roomSnapshot.exists()) {
             setErrorState()
             return
         }
         
-        updateDataFromSnapshot(roomSnapshot, roomId)
+        updateDataFromSnapshot(roomSnapshot)
     }
 
-    private fun updateDataFromSnapshot(roomSnapshot: DataSnapshot, roomNum: String) {
+    private fun updateDataFromSnapshot(roomSnapshot: DataSnapshot) {
         try {
-            // Room number đã được set trong processPhoneToRoomData()
-            Log.d(TAG, "Updating data for room: $roomNum")
-            
-            // Calculate usage data
             val currentMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
             val prevMonth = Calendar.getInstance().apply {
                 add(Calendar.MONTH, -1)
@@ -396,40 +311,29 @@ object FirebaseDataState {
             var latestWater: Double = -1.0
             val nodesSnapshot = roomSnapshot.child("nodes")
             
-            Log.d(TAG, "Nodes snapshot exists: ${nodesSnapshot.exists()}")
-            Log.d(TAG, "Number of nodes: ${nodesSnapshot.childrenCount}")
-            
             for (nodeSnapshot in nodesSnapshot.children) {
-                val nodeId = nodeSnapshot.key
-                Log.d(TAG, "Processing node: $nodeId")
-                
                 val lastData = nodeSnapshot.child("lastData")
-                Log.d(TAG, "LastData exists: ${lastData.exists()}")
-                
-                // Thử đọc dưới dạng Double trước, rồi Long
-                val waterValue = lastData.child("water").getValue(Double::class.java) 
+
+                val waterValue = lastData.child("water").getValue(Double::class.java)
                     ?: lastData.child("water").getValue(Long::class.java)?.toDouble()
                 val electricValue = lastData.child("electric").getValue(Double::class.java)
                     ?: lastData.child("electric").getValue(Long::class.java)?.toDouble()
 
-                Log.d(TAG, "Node $nodeId - Water: $waterValue, Electric: $electricValue")
 
                 if (waterValue != null && waterValue > latestWater) latestWater = waterValue
                 if (electricValue != null && electricValue > latestElectric) latestElectric = electricValue
             }
-            
-            Log.d(TAG, "Final readings - Electric: $latestElectric, Water: $latestWater")
-            
-            electricReading = if (latestElectric > -1) "${String.format("%.2f", latestElectric)} kWh" else "0 kWh"
-            waterReading = if (latestWater > -1) "${String.format("%.2f", latestWater)} m³" else "0 m³"
-            
+
+            electricReading = if (latestElectric > -1) "${String.format(Locale.getDefault(), "%.2f", latestElectric)} kWh" else "0 kWh"
+            waterReading = if (latestWater > -1) "${String.format(Locale.getDefault(), "%.2f", latestWater)} m³" else "0 m³"
+
             isDataLoaded = true
             isLoading = false
             
             // Save to cache cho lần tới
             saveToCache()
             
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             setErrorState()
         }
     }
@@ -506,12 +410,8 @@ object FirebaseDataState {
         currentRoomId = null
     }
 
-    // Function để lấy history data cho charts
     fun getHistoryData(callback: (electricMap: Map<String, Float>, waterMap: Map<String, Float>) -> Unit) {
-        // Thử new structure trước
         if (currentBuildingId != null && currentRoomId != null) {
-            Log.d(TAG, "Loading history from new structure: buildings/$currentBuildingId/rooms/$currentRoomId")
-            
             val historyRef = database?.getReference("buildings")
                 ?.child(currentBuildingId!!)
                 ?.child("rooms")
@@ -523,7 +423,6 @@ object FirebaseDataState {
                     if (snapshot.exists()) {
                         processHistoryData(snapshot, callback)
                     } else {
-                        Log.d(TAG, "No history in new structure, trying old structure...")
                         loadHistoryFromOldStructure(callback)
                     }
                 }
@@ -535,10 +434,8 @@ object FirebaseDataState {
             })
         } else if (currentRoomId != null) {
             // Fallback to old structure
-            Log.d(TAG, "Loading history from old structure: rooms/$currentRoomId")
             loadHistoryFromOldStructure(callback)
         } else {
-            Log.e(TAG, "No room ID available for history data")
             callback(emptyMap(), emptyMap())
         }
     }
@@ -582,7 +479,6 @@ object FirebaseDataState {
                 electricMap[dateKey] = electricValue.toFloat()
             }
         }
-        Log.d(TAG, "History data loaded: Electric=${electricMap.size}, Water=${waterMap.size}")
         callback(electricMap, waterMap)
     }
     
@@ -595,10 +491,7 @@ object FirebaseDataState {
         val prevCalendar = Calendar.getInstance()
         prevCalendar.add(Calendar.MONTH, -1)
         previousMonth = monthKeyFormat.format(prevCalendar.time)
-        
-        Log.d(TAG, "🔍 Checking payment status for month: $previousMonth")
-        
-        // Kiểm tra payment status của tháng trước
+
         val paymentRef = database?.getReference("buildings")
             ?.child(buildingId)
             ?.child("rooms")
@@ -611,35 +504,25 @@ object FirebaseDataState {
                         paymentSnapshot.child("status").getValue(String::class.java) == "PAID"
             
             suggestedPaymentMonth = when {
-                // Nếu tháng trước đã thanh toán, suggest tháng hiện tại (tạm tính)
                 isPaid -> {
-                    Log.d(TAG, "✅ Tháng trước ($previousMonth) đã thanh toán → Suggest tháng hiện tại: $currentMonth")
                     currentMonth
                 }
-                // Nếu tháng trước chưa thanh toán, suggest tháng trước
                 else -> {
-                    Log.d(TAG, "⏰ Tháng trước ($previousMonth) chưa thanh toán → Suggest tháng trước: $previousMonth")
                     previousMonth
                 }
             }
             
             isPaymentDataLoaded = true
-            Log.d(TAG, "💡 Suggested payment month set to: $suggestedPaymentMonth")
         }?.addOnFailureListener { error ->
-            Log.e(TAG, "❌ Failed to check payment status: ${error.message}")
-            // Fallback: suggest previous month
             suggestedPaymentMonth = previousMonth
             isPaymentDataLoaded = true
         }
     }
     
-    // Function để get current building and room IDs
     fun getCurrentBuildingId(): String? = currentBuildingId
     fun getCurrentRoomId(): String? = currentRoomId
     fun getCurrentMonth(): String = currentMonth
-    fun getPreviousMonth(): String = previousMonth
-    
-    // Function để refresh payment status (gọi sau khi thanh toán)
+
     fun refreshPaymentStatus() {
         if (currentBuildingId != null && currentRoomId != null) {
             checkPaymentStatusAndSuggestMonth(currentBuildingId!!, currentRoomId!!)
@@ -666,9 +549,6 @@ object FirebaseDataState {
                     }
                     isPricesLoaded = true
                     saveToCache() // Cache prices
-                    Log.d(TAG, "Prices loaded: E=$electricPrice, W=$waterPrice")
-                } else {
-                    Log.w(TAG, "Prices node does not exist for building $buildingId")
                 }
             }
 
@@ -678,10 +558,7 @@ object FirebaseDataState {
         })
     }
     
-    // Function to get building prices (for PayFragment)
     fun getBuildingPrices(): Pair<Int, Int> = Pair(electricPrice, waterPrice)
-    
-    // Function để tính consumption cho tháng cụ thể (for PayFragment)
     fun getMonthlyConsumption(targetMonth: String, callback: (electricUsage: Double, waterUsage: Double) -> Unit) {
         getHistoryData { electricMap, waterMap ->
             val prevCalendar = Calendar.getInstance().apply {
@@ -723,4 +600,4 @@ object FirebaseDataState {
         
         return maxOf(0.0, result.toDouble())
     }
-} 
+}

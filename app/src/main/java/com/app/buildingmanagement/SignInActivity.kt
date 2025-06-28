@@ -235,7 +235,7 @@ class SignInActivity : ComponentActivity() {
     }
 
     private fun goToMain() {
-        com.app.buildingmanagement.data.SharedDataManager.clearCache()
+        com.app.buildingmanagement.data.FirebaseDataState.cleanup()
 
         startActivity(Intent(this, MainActivity::class.java))
         finish()

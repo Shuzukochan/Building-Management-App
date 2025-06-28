@@ -35,7 +35,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -49,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,7 +56,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.app.buildingmanagement.R
 import com.app.buildingmanagement.data.FirebaseDataState
-import com.app.buildingmanagement.model.SimplePayment
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -66,6 +63,7 @@ import com.google.firebase.database.ValueEventListener
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -156,7 +154,7 @@ private fun FeedbackBottomSheetContent(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(40.dp)
                         .background(Color(0xFFC8E6C9), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -164,7 +162,7 @@ private fun FeedbackBottomSheetContent(
                         Icons.Default.Feedback,
                         contentDescription = null,
                         tint = Color(0xFF2E7D32),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -312,136 +310,226 @@ fun AboutBottomSheet(
 ) {
     val context = LocalContext.current
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
+    LaunchedEffect(Unit) {
+        val bottomSheetDialog = BottomSheetDialog(context)
+
+        // Enable drag handle and animations
+        bottomSheetDialog.behavior.isDraggable = true
+        bottomSheetDialog.behavior.isFitToContents = true
+        bottomSheetDialog.behavior.skipCollapsed = true
+
+        val composeView = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                AboutBottomSheetContent()
+            }
+        }
+
+        bottomSheetDialog.setContentView(composeView)
+        bottomSheetDialog.setOnDismissListener { onDismiss() }
+        bottomSheetDialog.show()
+    }
+}
+
+@Composable
+private fun AboutBottomSheetContent() {
+    val context = LocalContext.current
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 40.dp)
         ) {
-            // Logo section - compact
+            // Handle bar
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(
+                        Color(0xFFE0E0E0),
+                        RoundedCornerShape(2.dp)
+                    )
+                    .align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Header
             Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFFF3E5F5), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color(0xFF7B1FA2),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Về ứng dụng",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = "Thông tin ứng dụng",
+                        fontSize = 14.sp,
+                        color = Color(0xFF666666)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Logo section
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo_hcmute),
-                    contentDescription = "Logo HCMUTE",
-                    modifier = Modifier
-                        .height(56.dp)
-                        .width(56.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.logo_iot_vision),
-                    contentDescription = "Logo IoT Vision",
-                    modifier = Modifier.height(56.dp)
-                )
-            }
-
-            // App name & version
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Building Management",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
-                )
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_hcmute),
+                            contentDescription = "Logo HCMUTE",
+                            modifier = Modifier
+                                .height(56.dp)
+                                .width(56.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_iot_vision),
+                            contentDescription = "Logo IoT Vision",
+                            modifier = Modifier.height(56.dp)
+                        )
+                    }
 
-                val versionName = try {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                } catch (e: Exception) { "1.0.0" }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Phiên bản $versionName",
-                    fontSize = 13.sp,
-                    color = Color(0xFF666666),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                )
+                    Text(
+                        text = "Building Management",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center
+                    )
+
+                    val versionName = try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                    } catch (_: Exception) { "1.0.0" }
+
+                    Text(
+                        text = "Phiên bản $versionName",
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Description section
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Text(
-                    text = "Giới thiệu đồ án",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-
-                Text(
-                    text = "Ứng dụng quản lý tòa nhà thông minh với IoT, giúp theo dõi và quản lý tiêu thụ năng lượng, thanh toán hóa đơn một cách tiện lợi.",
-                    fontSize = 14.sp,
-                    color = Color(0xFF666666),
-                    lineHeight = 18.sp
-                )
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Giới thiệu đồ án",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Ứng dụng quản lý tòa nhà thông minh với IoT, giúp theo dõi và quản lý tiêu thụ năng lượng, thanh toán hóa đơn một cách tiện lợi.",
+                        fontSize = 14.sp,
+                        color = Color(0xFF666666),
+                        lineHeight = 18.sp
+                    )
+                }
             }
 
-            // Team info
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Nhóm thực hiện",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+            Spacer(modifier = Modifier.height(20.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
-                    elevation = CardDefaults.cardElevation(0.dp)
+            // Team info
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp)
-                    ) {
-                        listOf(
-                            "Sinh viên 1" to "Nguyễn Bá Uy - 21146362",
-                            "Sinh viên 2" to "Trần Văn Huy - 21146552",
-                            "Sinh viên 3" to "Huỳnh Quang Vũ - 21146366",
-                            "GVHD" to "TS. Nguyễn Văn Thái"
-                        ).forEach { (label, info) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF546E7A),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = info,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF666666),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                    Text(
+                        text = "Nhóm thực hiện",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    listOf(
+                        "Sinh viên 1" to "Nguyễn Bá Uy - 21146362",
+                        "Sinh viên 2" to "Trần Văn Huy - 21146552",
+                        "Sinh viên 3" to "Huỳnh Quang Vũ - 21146366",
+                        "GVHD" to "TS. Nguyễn Văn Thái"
+                    ).forEach { (label, info) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                color = Color(0xFF546E7A),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = info,
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666),
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Copyright
             Text(
@@ -451,7 +539,7 @@ fun AboutBottomSheet(
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 8.dp)
+                    .padding(top = 8.dp)
             )
         }
     }
@@ -463,9 +551,7 @@ fun PaymentHistoryBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val screenHeight = configuration.screenHeightDp.dp
-    var paymentList by remember { mutableStateOf<List<SimplePayment>>(emptyList()) }
+    var paymentList by remember { mutableStateOf<List<Triple<Long, String, String>>>(emptyList()) } // amount, timestamp, status
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -486,17 +572,15 @@ fun PaymentHistoryBottomSheet(
             try {
                 Log.d("PaymentHistory", "🔍 Loading payments for roomNumber: $roomNumber, buildingId: $buildingId")
                 val database = FirebaseDatabase.getInstance()
-                val payments = mutableListOf<SimplePayment>()
+                val payments = mutableListOf<Triple<Long, String, String>>()
                 var completedQueries = 0
-                val totalQueries = if (buildingId != null) 4 else 2 // Increased for debug queries
+                val totalQueries = if (buildingId != null) 4 else 2
 
-                // Define checkComplete function first
                 fun checkComplete() {
                     completedQueries++
                     Log.d("PaymentHistory", "✅ Query $completedQueries/$totalQueries completed. Total payments found: ${payments.size}")
                     if (completedQueries >= totalQueries) {
-                        // Sort by timestamp descending (newest first) 
-                        payments.sortByDescending { it.timestamp }
+                        payments.sortByDescending { it.second }
                         paymentList = payments
                         isLoading = false
                         
@@ -510,67 +594,48 @@ fun PaymentHistoryBottomSheet(
                 }
 
                 // Debug query to see Firebase structure
-                Log.d("PaymentHistory", "🔍 Debug: Checking Firebase root structure...")
                 database.getReference().addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        Log.d("PaymentHistory", "📁 Firebase root children: ${snapshot.children.map { it.key }}")
                         checkComplete()
                     }
                     override fun onCancelled(error: DatabaseError) {
-                        Log.e("PaymentHistory", "❌ Debug root query failed: ${error.message}")
                         checkComplete()
                     }
                 })
 
                 // Debug building structure if buildingId exists
                 if (buildingId != null) {
-                    Log.d("PaymentHistory", "🔍 Debug: Checking building structure for buildingId: $buildingId")
                     database.getReference("buildings").child(buildingId).child("rooms").addListenerForSingleValueEvent(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
-                            Log.d("PaymentHistory", "📁 Building $buildingId rooms: ${snapshot.children.map { it.key }}")
                             checkComplete()
                         }
                         override fun onCancelled(error: DatabaseError) {
-                            Log.e("PaymentHistory", "❌ Debug building query failed: ${error.message}")
                             checkComplete()
                         }
                     })
                 } else {
-                    // If no buildingId, add one more completion
                     checkComplete()
                 }
 
-                // Query 1: Old structure - rooms/{roomNumber}/payments
-                val oldPath = "rooms/$roomNumber/payments"
-                Log.d("PaymentHistory", "🔍 Query 1: Checking old structure at: $oldPath")
+                // Query 1: Old structure
                 val oldPaymentsRef = database.getReference("rooms")
                     .child(roomNumber)
                     .child("payments")
 
                 oldPaymentsRef.addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        Log.d("PaymentHistory", "📊 Old structure query result: exists=${snapshot.exists()}, children=${snapshot.childrenCount}")
-                        
                         if (snapshot.exists()) {
                             for (monthSnapshot in snapshot.children) {
                                 val monthKey = monthSnapshot.key ?: continue
-                                Log.d("PaymentHistory", "📅 Processing month: $monthKey")
-                                
                                 val amount = monthSnapshot.child("amount").getValue(Long::class.java) ?: 0
                                 val timestamp = monthSnapshot.child("timestamp").getValue(String::class.java) ?: ""
                                 val status = monthSnapshot.child("status").getValue(String::class.java) ?: ""
-                                
-                                Log.d("PaymentHistory", "💰 Month $monthKey: amount=$amount, status=$status, timestamp=$timestamp")
 
                                 if (amount > 0) {
-                                    val finalTimestamp = if (timestamp.isNotEmpty()) {
-                                        timestamp
-                                    } else {
+                                    val finalTimestamp = timestamp.ifEmpty {
                                         "${monthKey}-01_00-00-00"
                                     }
-                                    
-                                    payments.add(SimplePayment(amount, finalTimestamp, status))
-                                    Log.d("PaymentHistory", "✅ Added payment from old structure: $amount VND")
+                                    payments.add(Triple(amount, finalTimestamp, status))
                                 }
                             }
                         }
@@ -578,7 +643,6 @@ fun PaymentHistoryBottomSheet(
                     }
 
                     override fun onCancelled(error: DatabaseError) {
-                        Log.e("PaymentHistory", "❌ Old structure query cancelled: ${error.message}")
                         checkComplete()
                     }
                 })
@@ -586,8 +650,6 @@ fun PaymentHistoryBottomSheet(
                 // Query 2 & 3: New structure if buildingId available
                 if (buildingId != null) {
                     // Try with roomNumber as key
-                    val newPath1 = "buildings/$buildingId/rooms/$roomNumber/payments"
-                    Log.d("PaymentHistory", "🔍 Query 2: Checking new structure at: $newPath1")
                     val newPaymentsRef1 = database.getReference("buildings")
                         .child(buildingId)
                         .child("rooms")
@@ -596,25 +658,18 @@ fun PaymentHistoryBottomSheet(
 
                     newPaymentsRef1.addListenerForSingleValueEvent(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
-                            Log.d("PaymentHistory", "📊 New structure 1 query result: exists=${snapshot.exists()}, children=${snapshot.childrenCount}")
-                            
                             if (snapshot.exists()) {
                                 for (monthSnapshot in snapshot.children) {
                                     val monthKey = monthSnapshot.key ?: continue
-                                    
                                     val amount = monthSnapshot.child("amount").getValue(Long::class.java) ?: 0
                                     val timestamp = monthSnapshot.child("timestamp").getValue(String::class.java) ?: ""
                                     val status = monthSnapshot.child("status").getValue(String::class.java) ?: ""
 
                                     if (amount > 0) {
-                                        val finalTimestamp = if (timestamp.isNotEmpty()) {
-                                            timestamp
-                                        } else {
+                                        val finalTimestamp = timestamp.ifEmpty {
                                             "${monthKey}-01_00-00-00"
                                         }
-                                        
-                                        payments.add(SimplePayment(amount, finalTimestamp, status))
-                                        Log.d("PaymentHistory", "✅ Added payment from new structure 1: $amount VND")
+                                        payments.add(Triple(amount, finalTimestamp, status))
                                     }
                                 }
                             }
@@ -622,15 +677,12 @@ fun PaymentHistoryBottomSheet(
                         }
 
                         override fun onCancelled(error: DatabaseError) {
-                            Log.e("PaymentHistory", "❌ New structure 1 query cancelled: ${error.message}")
                             checkComplete()
                         }
                     })
 
                     // Try with roomNumber without "Phòng " prefix
                     val cleanRoomNumber = roomNumber.replace("Phòng ", "")
-                    val newPath2 = "buildings/$buildingId/rooms/$cleanRoomNumber/payments"
-                    Log.d("PaymentHistory", "🔍 Query 3: Checking new structure at: $newPath2")
                     val newPaymentsRef2 = database.getReference("buildings")
                         .child(buildingId)
                         .child("rooms")
@@ -639,25 +691,18 @@ fun PaymentHistoryBottomSheet(
 
                     newPaymentsRef2.addListenerForSingleValueEvent(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
-                            Log.d("PaymentHistory", "📊 New structure 2 query result: exists=${snapshot.exists()}, children=${snapshot.childrenCount}")
-                            
                             if (snapshot.exists()) {
                                 for (monthSnapshot in snapshot.children) {
                                     val monthKey = monthSnapshot.key ?: continue
-                                    
                                     val amount = monthSnapshot.child("amount").getValue(Long::class.java) ?: 0
                                     val timestamp = monthSnapshot.child("timestamp").getValue(String::class.java) ?: ""
                                     val status = monthSnapshot.child("status").getValue(String::class.java) ?: ""
 
                                     if (amount > 0) {
-                                        val finalTimestamp = if (timestamp.isNotEmpty()) {
-                                            timestamp
-                                        } else {
+                                        val finalTimestamp = timestamp.ifEmpty {
                                             "${monthKey}-01_00-00-00"
                                         }
-                                        
-                                        payments.add(SimplePayment(amount, finalTimestamp, status))
-                                        Log.d("PaymentHistory", "✅ Added payment from new structure 2: $amount VND")
+                                        payments.add(Triple(amount, finalTimestamp, status))
                                     }
                                 }
                             }
@@ -665,7 +710,6 @@ fun PaymentHistoryBottomSheet(
                         }
 
                         override fun onCancelled(error: DatabaseError) {
-                            Log.e("PaymentHistory", "❌ New structure 2 query cancelled: ${error.message}")
                             checkComplete()
                         }
                     })
@@ -681,118 +725,215 @@ fun PaymentHistoryBottomSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFFF7F7FB),
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    LaunchedEffect(Unit) {
+        val bottomSheetDialog = BottomSheetDialog(context)
+
+        // Enable drag handle and animations
+        bottomSheetDialog.behavior.isDraggable = true
+        bottomSheetDialog.behavior.isFitToContents = true
+        bottomSheetDialog.behavior.skipCollapsed = true
+
+        val composeView = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                PaymentHistoryBottomSheetContent(
+                    paymentList = paymentList,
+                    isLoading = isLoading,
+                    errorMessage = errorMessage
+                )
+            }
+        }
+
+        bottomSheetDialog.setContentView(composeView)
+        bottomSheetDialog.setOnDismissListener { onDismiss() }
+        bottomSheetDialog.show()
+    }
+}
+
+@Composable
+private fun PaymentHistoryBottomSheetContent(
+    paymentList: List<Triple<Long, String, String>>,
+    isLoading: Boolean,
+    errorMessage: String?
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = screenHeight * 0.6f)
-                .padding(horizontal = 0.dp, vertical = 0.dp)
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 40.dp)
         ) {
-            // Title
-            Text(
-                text = "Lịch sử thanh toán",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 20.dp)
+            // Handle bar
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(
+                        Color(0xFFE0E0E0),
+                        RoundedCornerShape(2.dp)
+                    )
+                    .align(Alignment.CenterHorizontally)
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFFE3F2FD), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = Color(0xFF1976D2),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Lịch sử thanh toán",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = "Xem các giao dịch đã thực hiện",
+                        fontSize = 14.sp,
+                        color = Color(0xFF666666)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Content section - remove outer card, show content directly
             when {
                 isLoading -> {
                     // Loading state
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
+                            .height(300.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            color = Color(0xFF4CAF50)
-                        )
-                    }
-                }
-                
-                errorMessage != null -> {
-                    // Error state
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            tint = Color.Red,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = errorMessage ?: "Có lỗi xảy ra",
-                            textAlign = TextAlign.Center,
-                            color = Color.Gray
-                        )
-                    }
-                }
-                
-                paymentList.isEmpty() -> {
-                    // Empty state
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Receipt,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Chưa có lịch sử thanh toán",
-                            textAlign = TextAlign.Center,
-                            color = Color.Gray
-                        )
-                    }
-                }
-                
-                else -> {
-                    // Payment list
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 24.dp, horizontal = 12.dp)
-                    ) {
-                        items(paymentList) { payment ->
-                            ComposePaymentHistoryItem(
-                                payment = payment,
-                                modifier = Modifier.padding(horizontal = 2.dp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF4CAF50),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Đang tải...",
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666)
                             )
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                errorMessage != null -> {
+                    // Error state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                tint = Color(0xFFE57373),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = errorMessage,
+                                textAlign = TextAlign.Center,
+                                color = Color(0xFF666666),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                paymentList.isEmpty() -> {
+                    // Empty state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Receipt,
+                                contentDescription = null,
+                                tint = Color(0xFFBDBDBD),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Chưa có lịch sử thanh toán",
+                                textAlign = TextAlign.Center,
+                                color = Color(0xFF666666),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    // Payment list - no outer card, just LazyColumn with individual cards
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 300.dp, max = 600.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(paymentList) { payment ->
+                            PaymentHistoryItemCard(payment = payment)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ComposePaymentHistoryItem(
-    payment: SimplePayment,
-    modifier: Modifier = Modifier
+private fun PaymentHistoryItemCard(
+    payment: Triple<Long, String, String>
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color(0xFFE0E0E0)
+        )
     ) {
         Row(
             modifier = Modifier
@@ -800,12 +941,12 @@ private fun ComposePaymentHistoryItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon trạng thái
+            // Status icon
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(36.dp)
                     .background(
-                        color = when (payment.status.lowercase()) {
+                        color = when (payment.third.lowercase()) {
                             "paid", "đã thanh toán" -> Color(0xFFE8F5E9)
                             "pending", "chờ xử lý" -> Color(0xFFFFF3E0)
                             else -> Color(0xFFFFEBEE)
@@ -815,63 +956,74 @@ private fun ComposePaymentHistoryItem(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (payment.status.lowercase()) {
+                    imageVector = when (payment.third.lowercase()) {
                         "paid", "đã thanh toán" -> Icons.Default.CheckCircle
                         "pending", "chờ xử lý" -> Icons.Default.History
                         else -> Icons.Default.Error
                     },
                     contentDescription = null,
-                    tint = when (payment.status.lowercase()) {
+                    tint = when (payment.third.lowercase()) {
                         "paid", "đã thanh toán" -> Color(0xFF43A047)
                         "pending", "chờ xử lý" -> Color(0xFFFFA000)
                         else -> Color(0xFFD32F2F)
                     },
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Thông tin thanh toán
+            // Payment info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = formatCurrency(payment.amount),
-                    fontSize = 18.sp,
+                    text = formatCurrency(payment.first),
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = formatTimestamp(payment.timestamp),
-                    fontSize = 14.sp,
+                    text = formatTimestamp(payment.second),
+                    fontSize = 13.sp,
                     color = Color(0xFF666666)
                 )
             }
 
-            // Trạng thái
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Status badge
             Surface(
-                color = when (payment.status.lowercase()) {
+                color = when (payment.third.lowercase()) {
                     "paid", "đã thanh toán" -> Color(0xFFE8F5E9)
                     "pending", "chờ xử lý" -> Color(0xFFFFF3E0)
                     else -> Color(0xFFFFEBEE)
                 },
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = when (payment.third.lowercase()) {
+                        "paid", "đã thanh toán" -> Color(0xFF43A047).copy(alpha = 0.3f)
+                        "pending", "chờ xử lý" -> Color(0xFFFFA000).copy(alpha = 0.3f)
+                        else -> Color(0xFFD32F2F).copy(alpha = 0.3f)
+                    }
+                )
             ) {
                 Text(
-                    text = when (payment.status.lowercase()) {
+                    text = when (payment.third.lowercase()) {
                         "paid", "đã thanh toán" -> "Đã thanh toán"
                         "pending", "chờ xử lý" -> "Chờ xử lý"
-                        else -> payment.status
+                        else -> payment.third
                     },
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = when (payment.status.lowercase()) {
+                    color = when (payment.third.lowercase()) {
                         "paid", "đã thanh toán" -> Color(0xFF43A047)
                         "pending", "chờ xử lý" -> Color(0xFFFFA000)
                         else -> Color(0xFFD32F2F)
                     },
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
         }
     }
-} 
+}

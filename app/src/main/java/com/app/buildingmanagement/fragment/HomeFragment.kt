@@ -35,6 +35,8 @@ import com.app.buildingmanagement.fragment.ui.home.MeterReadingSection
 import com.app.buildingmanagement.fragment.ui.home.TipsSection
 import com.app.buildingmanagement.fragment.ui.home.LoadingSkeleton
 import com.app.buildingmanagement.fragment.ui.home.responsiveDimension
+import androidx.core.graphics.toColorInt
+import androidx.core.content.edit
 
 // Function độc lập cho navigation
 @Composable
@@ -48,20 +50,15 @@ fun HomeScreen() {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (activity != null) {
-            android.util.Log.d("HomeScreen", "Permission result: $isGranted")
             handleNotificationPermissionResult(activity, isGranted)
         }
     }
 
     // LaunchedEffect để kiểm tra notification permission khi screen load
     LaunchedEffect(Unit) {
-        android.util.Log.d("HomeScreen", "LaunchedEffect started")
         if (!hasCheckedNotificationPermission && activity != null) {
             hasCheckedNotificationPermission = true
-            android.util.Log.d("HomeScreen", "Checking notification permission")
-
-            // Delay 1 giây để UI ổn định
-            kotlinx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(500)
             checkNotificationPermission(activity, notificationPermissionLauncher)
         }
     }
@@ -100,7 +97,6 @@ fun HomeScreen() {
                 waterReading = waterReading,
                 sectionTitleTextSize = dimen.sectionTitleTextSize,
                 titleMarginBottom = dimen.titleMarginBottom,
-                cardMarginBottom = dimen.cardMarginBottom,
                 readingCardPadding = dimen.readingCardPadding,
                 readingValueTextSize = dimen.readingValueTextSize
             )
@@ -115,10 +111,6 @@ private fun checkNotificationPermission(
     activity: androidx.activity.ComponentActivity,
     notificationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
 ) {
-    android.util.Log.d("HomeScreen", "checkNotificationPermission called")
-    android.util.Log.d("HomeScreen", "Build.VERSION.SDK_INT: ${Build.VERSION.SDK_INT}")
-    android.util.Log.d("HomeScreen", "TIRAMISU: ${Build.VERSION_CODES.TIRAMISU}")
-
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val sharedPref = activity.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val hasRequestedBefore = sharedPref.getBoolean("notification_permission_requested", false)
@@ -131,14 +123,8 @@ private fun checkNotificationPermission(
             Manifest.permission.POST_NOTIFICATIONS
         )
 
-        android.util.Log.d("HomeScreen", "hasRequestedBefore: $hasRequestedBefore")
-        android.util.Log.d("HomeScreen", "userEnabledNotifications: $userEnabledNotifications")
-        android.util.Log.d("HomeScreen", "currentPermission: $currentPermission")
-        android.util.Log.d("HomeScreen", "PERMISSION_GRANTED: ${PackageManager.PERMISSION_GRANTED}")
-
         when {
             currentPermission == PackageManager.PERMISSION_GRANTED -> {
-                android.util.Log.d("HomeScreen", "Permission already granted")
                 if (userEnabledNotifications) {
                     val roomNumber = FirebaseDataState.roomNumber.removePrefix("Phòng ")
                     if (roomNumber != "--" && roomNumber.isNotEmpty()) {
@@ -147,17 +133,14 @@ private fun checkNotificationPermission(
                 }
             }
             hasRequestedBefore -> {
-                android.util.Log.d("HomeScreen", "Already asked before, don't ask again")
             }
             else -> {
-                android.util.Log.d("HomeScreen", "Will show permission dialog")
                 Handler(Looper.getMainLooper()).postDelayed({
                     showNotificationPermissionDialog(activity, notificationPermissionLauncher)
                 }, 800)
             }
         }
     } else {
-        android.util.Log.d("HomeScreen", "Android version < TIRAMISU, no permission needed")
         val appSettings = activity.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val userEnabledNotifications = appSettings.getBoolean("notifications_enabled", true)
 
@@ -174,8 +157,6 @@ private fun showNotificationPermissionDialog(
     activity: androidx.activity.ComponentActivity,
     notificationPermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
 ) {
-    android.util.Log.d("HomeScreen", "showNotificationPermissionDialog called")
-
     try {
         val message = """
             Ứng dụng cần quyền thông báo để:
@@ -191,43 +172,34 @@ private fun showNotificationPermissionDialog(
             .setTitle("Cho phép thông báo")
             .setMessage(message)
             .setPositiveButton("Cho phép") { _, _ ->
-                android.util.Log.d("HomeScreen", "User clicked Allow, launching permission request")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
             .setNegativeButton("Không") { _, _ ->
-                android.util.Log.d("HomeScreen", "User clicked Deny")
                 handleNotificationPermissionDenied(activity)
             }
             .setCancelable(false)
             .create()
 
-        android.util.Log.d("HomeScreen", "Showing dialog")
         dialog.show()
 
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#2196F3"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor("#2196F3".toColorInt())
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor("#9E9E9E".toColorInt())
 
-        android.util.Log.d("HomeScreen", "Dialog shown successfully")
-    } catch (e: Exception) {
-        android.util.Log.e("HomeScreen", "Error showing dialog: ${e.message}")
+    } catch (_: Exception) {
     }
 }
 
 private fun handleNotificationPermissionResult(activity: androidx.activity.ComponentActivity, isGranted: Boolean) {
-    android.util.Log.d("HomeScreen", "handleNotificationPermissionResult: $isGranted")
-
     val appPrefs = activity.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    appPrefs.edit().putBoolean("notification_permission_requested", true).apply()
+    appPrefs.edit { putBoolean("notification_permission_requested", true) }
 
     if (isGranted) {
         val appSettings = activity.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        appSettings.edit().putBoolean("notifications_enabled", true).apply()
+        appSettings.edit { putBoolean("notifications_enabled", true) }
 
         val roomNumber = FirebaseDataState.roomNumber.removePrefix("Phòng ")
-        android.util.Log.d("HomeScreen", "Subscribing to topics for room: $roomNumber")
-
         if (roomNumber != "--" && roomNumber.isNotEmpty()) {
             FCMHelper.subscribeToUserBuildingTopics(roomNumber)
         }
@@ -239,13 +211,12 @@ private fun handleNotificationPermissionResult(activity: androidx.activity.Compo
 }
 
 private fun handleNotificationPermissionDenied(activity: androidx.activity.ComponentActivity) {
-    android.util.Log.d("HomeScreen", "handleNotificationPermissionDenied called")
 
     val appPrefs = activity.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    appPrefs.edit().putBoolean("notification_permission_requested", true).apply()
+    appPrefs.edit { putBoolean("notification_permission_requested", true) }
 
     val appSettings = activity.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-    appSettings.edit().putBoolean("notifications_enabled", false).apply()
+    appSettings.edit { putBoolean("notifications_enabled", false) }
 
     Toast.makeText(activity, "Bạn có thể bật thông báo trong Cài đặt nếu muốn nhận thông tin từ ban quản lý", Toast.LENGTH_LONG).show()
 }

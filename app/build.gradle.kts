@@ -15,14 +15,15 @@ if (localPropsFile.exists()) {
 
 android {
     namespace = "com.app.buildingmanagement"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.app.buildingmanagement"
         minSdk = 24
+        //noinspection OldTargetApi
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "1.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val apiKey = requireNotNull(localProps.getProperty("API_KEY")) { "API_KEY missing from local.properties" }
@@ -96,21 +97,21 @@ dependencies {
     implementation(libs.compose.activity)
     
     // ConstraintLayout Compose - cần thiết cho layout giống XML gốc
-    implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
+    implementation(libs.constraintlayout.compose)
 
     // Compose Material Icons - sử dụng BOM để quản lý version
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.compose.material.icons.core)
+    implementation(libs.compose.material.icons.extended)
     
     // Compose UI thêm
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.animation:animation")
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.animation)
     
     // Fragment KTX cho Fragment
-    implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation(libs.fragment.ktx)
     
     // Navigation Compose
-    implementation("androidx.navigation:navigation-compose:2.8.4")
+    implementation(libs.navigation.compose)
     
     debugImplementation(libs.compose.ui.tooling)
     

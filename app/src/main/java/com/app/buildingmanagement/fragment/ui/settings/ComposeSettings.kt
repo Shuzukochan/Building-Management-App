@@ -4,14 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,34 +22,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PrivateConnectivity
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -65,66 +48,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.app.buildingmanagement.MainActivity
-import com.app.buildingmanagement.R
-import com.app.buildingmanagement.SignInActivity
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import com.app.buildingmanagement.data.FirebaseDataState
-import com.app.buildingmanagement.firebase.FCMHelper
-import com.app.buildingmanagement.fragment.ui.home.HomeConstants
-import com.app.buildingmanagement.model.SimplePayment
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import androidx.compose.material3.Surface
-import java.text.NumberFormat
-
-
-// ============================================================================
-// MAIN SETTINGS COMPOSABLE
-// ============================================================================
 
 @Composable
 fun ComposeSettings(
-    onNavigateBack: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val user = auth.currentUser
     val phone = user?.phoneNumber?.replace("+84", "0") ?: "Không có số điện thoại"
     
-    // Get responsive dimensions with compact spacing
-    val dimensions = com.app.buildingmanagement.fragment.ui.home.responsiveDimension()
-    val compactSpacing = (dimensions.cardMarginBottom.value * 0.5f).dp
-    
+    // Get home dimensions for header only
+    val homeDimensions = com.app.buildingmanagement.fragment.ui.home.responsiveDimension()
+
     // States
     var isNotificationEnabled by remember { mutableStateOf(true) }
     var showFeedbackSheet by remember { mutableStateOf(false) }
     var showAboutSheet by remember { mutableStateOf(false) }
     var showPaymentHistorySheet by remember { mutableStateOf(false) }
-    
+
     // Load notification preference
     LaunchedEffect(Unit) {
         val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -138,7 +92,9 @@ fun ComposeSettings(
             
             if (!hasSystemPermission && isNotificationEnabled) {
                 isNotificationEnabled = false
-                sharedPref.edit().putBoolean("notifications_enabled", false).apply()
+                sharedPref.edit {
+                    putBoolean("notifications_enabled", false)
+                }
             }
         }
     }
@@ -147,10 +103,17 @@ fun ComposeSettings(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        val sharedPref = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        isNotificationEnabled = isGranted
+        sharedPref.edit {
+            putBoolean("notifications_enabled", isGranted)
+        }
+
+        // IMPORTANT: Subscribe to FCM topic if permission granted
         if (isGranted) {
-            isNotificationEnabled = true
-        } else {
-            isNotificationEnabled = false
+            val cleanRoomNumber = FirebaseDataState.roomNumber.replace("Phòng ", "")
+            com.app.buildingmanagement.firebase.FCMHelper.subscribeToUserBuildingTopics(cleanRoomNumber)
+            android.widget.Toast.makeText(context, "Đã bật thông báo", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -158,15 +121,15 @@ fun ComposeSettings(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF7F7FB))
-            .padding(dimensions.mainPadding),
-        verticalArrangement = Arrangement.spacedBy(compactSpacing)
+            .padding(homeDimensions.mainPadding),
+        verticalArrangement = Arrangement.spacedBy(SettingsConstants.CARD_MARGIN_BOTTOM.dp)
     ) {
         item {
-            // Header - smaller font size
+            // Header - use home dimensions for consistency
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Tài khoản và cài đặt",
-                    fontSize = dimensions.titleTextSize,
+                    fontSize = homeDimensions.titleTextSize,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1A1A)
                 )
@@ -178,13 +141,12 @@ fun ComposeSettings(
             UserInfoCard(
                 userName = if (FirebaseDataState.isUserDataLoaded) FirebaseDataState.userName else "Đang tải...",
                 roomNumber = if (FirebaseDataState.isDataLoaded) FirebaseDataState.roomNumber else "Đang tải...",
-                phoneNumber = phone,
-                dimensions = dimensions
+                phoneNumber = phone
             )
         }
         
         item {
-            // Notification Section - smaller header
+            // Notification Section
             NotificationSection(
                 isEnabled = isNotificationEnabled,
                 onToggle = {
@@ -192,15 +154,16 @@ fun ComposeSettings(
                         context = context,
                         enabled = !isNotificationEnabled,
                         permissionLauncher = notificationPermissionLauncher,
-                        updateState = { isNotificationEnabled = it }
+                        updateState = { newState ->
+                            isNotificationEnabled = newState
+                        }
                     )
-                },
-                dimensions = dimensions
+                }
             )
         }
         
         item {
-            // Payment Section - smaller header
+            // Payment Section
             ActionSection(
                 title = "Thanh toán",
                 items = listOf(
@@ -211,13 +174,12 @@ fun ComposeSettings(
                         title = "Lịch sử thanh toán",
                         onClick = { showPaymentHistorySheet = true }
                     )
-                ),
-                dimensions = dimensions
+                )
             )
         }
         
         item {
-            // Support Section - smaller header
+            // Support Section
             ActionSection(
                 title = "Hỗ trợ",
                 items = listOf(
@@ -233,7 +195,12 @@ fun ComposeSettings(
                         iconBackgroundColor = Color(0xFFE8F5E8),
                         iconTint = Color(0xFF388E3C),
                         title = "Liên hệ hỗ trợ",
-                        onClick = { openDialer(context, "0398103352") }
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
+                                data = "tel:0398103352".toUri()
+                            }
+                            context.startActivity(intent)
+                        }
                     ),
                     SettingsActionItem(
                         icon = Icons.Default.Info,
@@ -242,27 +209,29 @@ fun ComposeSettings(
                         title = "Về ứng dụng",
                         onClick = { showAboutSheet = true }
                     )
-                ),
-                dimensions = dimensions
+                )
             )
         }
         
         item {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(SettingsConstants.SPACING_XS.dp))
         }
         
         item {
             // Logout Button
             LogoutButton(
                 onLogoutClick = {
-                    showLogoutConfirmation(context, auth, onNavigateBack)
-                },
-                dimensions = dimensions
+                    showLogoutConfirmation(
+                        context = context,
+                        auth = auth,
+                        onNavigateBack = onNavigateBack
+                    )
+                }
             )
         }
         
         item {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SettingsConstants.SPACING_S.dp))
         }
     }
     
@@ -297,19 +266,18 @@ data class SettingsActionItem(
 private fun UserInfoCard(
     userName: String,
     roomNumber: String,
-    phoneNumber: String,
-    dimensions: com.app.buildingmanagement.fragment.ui.home.ResponsiveDimension
+    phoneNumber: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(HomeConstants.CARD_CORNER_RADIUS.dp),
+        shape = RoundedCornerShape(SettingsConstants.CARD_CORNER_RADIUS.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = HomeConstants.CARD_ELEVATION_DEFAULT.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = SettingsConstants.CARD_ELEVATION_DEFAULT.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = dimensions.cardPadding, vertical = (dimensions.cardPadding.value * 1.1f).dp),
+                .padding(SettingsConstants.SPACING_L.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // User Icon
@@ -323,27 +291,27 @@ private fun UserInfoCard(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
                     tint = Color(0xFFF57C00),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(SettingsConstants.ICON_SIZE_SMALL.dp)
                 )
             }
             
-            Spacer(modifier = Modifier.width(HomeConstants.SPACING_LARGE.dp))
-            
+            Spacer(modifier = Modifier.width(SettingsConstants.SPACING_L.dp))
+
             // Info Column
             Column(modifier = Modifier.weight(1f)) {
                 // Line 1: User Name
                 Text(
                     text = userName,
-                    fontSize = (dimensions.usageValueTextSize.value * 0.95f).sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = SettingsConstants.SPACING_XS.dp)
                 )
                 
                 // Line 2: Room & Phone
                 Text(
                     text = "$roomNumber • $phoneNumber",
-                    fontSize = (dimensions.subtitleTextSize.value * 1.05f).sp,
+                    fontSize = 14.sp,
                     color = Color(0xFF666666)
                 )
             }
@@ -354,33 +322,32 @@ private fun UserInfoCard(
 @Composable
 private fun NotificationSection(
     isEnabled: Boolean,
-    onToggle: () -> Unit,
-    dimensions: com.app.buildingmanagement.fragment.ui.home.ResponsiveDimension
+    onToggle: () -> Unit
 ) {
     Column {
         Text(
             text = "Thông báo",
-            fontSize = 14.sp, // Smaller font size
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF333333),
             modifier = Modifier.padding(
-                start = HomeConstants.SPACING_SMALL.dp,
-                bottom = (dimensions.headerMarginBottom.value * 0.4f).dp
+                start = SettingsConstants.SPACING_S.dp,
+                bottom = SettingsConstants.SPACING_S.dp
             )
         )
         
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(HomeConstants.CARD_CORNER_RADIUS.dp),
+            shape = RoundedCornerShape(SettingsConstants.CARD_CORNER_RADIUS.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = HomeConstants.CARD_ELEVATION_DEFAULT.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = SettingsConstants.CARD_ELEVATION_DEFAULT.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggle() }
                     .heightIn(min = 64.dp)
-                    .padding(dimensions.cardPadding),
+                    .padding(SettingsConstants.SPACING_L.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -397,11 +364,11 @@ private fun NotificationSection(
                     )
                 }
                 
-                Spacer(modifier = Modifier.width(HomeConstants.SPACING_LARGE.dp))
-                
+                Spacer(modifier = Modifier.width(SettingsConstants.SPACING_L.dp))
+
                 Text(
                     text = "Thông báo đẩy",
-                    fontSize = (dimensions.usageValueTextSize.value * 0.9f).sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
                     modifier = Modifier.weight(1f)
@@ -425,35 +392,34 @@ private fun NotificationSection(
 @Composable
 private fun ActionSection(
     title: String,
-    items: List<SettingsActionItem>,
-    dimensions: com.app.buildingmanagement.fragment.ui.home.ResponsiveDimension
+    items: List<SettingsActionItem>
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            fontSize = 14.sp, // Smaller font size
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF333333),
             modifier = Modifier.padding(
-                start = HomeConstants.SPACING_SMALL.dp,
-                bottom = (dimensions.headerMarginBottom.value * 0.4f).dp
+                start = SettingsConstants.SPACING_S.dp,
+                bottom = SettingsConstants.SPACING_S.dp
             )
         )
         
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(HomeConstants.CARD_CORNER_RADIUS.dp),
+            shape = RoundedCornerShape(SettingsConstants.CARD_CORNER_RADIUS.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = HomeConstants.CARD_ELEVATION_DEFAULT.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = SettingsConstants.CARD_ELEVATION_DEFAULT.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 items.forEachIndexed { index, item ->
-                    ActionItemRow(item = item, dimensions = dimensions)
-                    
+                    ActionItemRow(item = item)
+
                     if (index < items.size - 1) {
                         HorizontalDivider(
                             modifier = Modifier.padding(
-                                start = (40 + HomeConstants.SPACING_LARGE + HomeConstants.SPACING_LARGE).dp
+                                start = (40 + SettingsConstants.SPACING_L + SettingsConstants.SPACING_L).dp
                             ),
                             color = Color(0xFFF0F0F0),
                             thickness = 1.dp
@@ -467,15 +433,14 @@ private fun ActionSection(
 
 @Composable
 private fun ActionItemRow(
-    item: SettingsActionItem,
-    dimensions: com.app.buildingmanagement.fragment.ui.home.ResponsiveDimension
+    item: SettingsActionItem
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { item.onClick() }
             .heightIn(min = 64.dp)
-            .padding(dimensions.cardPadding),
+            .padding(SettingsConstants.SPACING_L.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -492,11 +457,11 @@ private fun ActionItemRow(
             )
         }
         
-        Spacer(modifier = Modifier.width(HomeConstants.SPACING_LARGE.dp))
-        
+        Spacer(modifier = Modifier.width(SettingsConstants.SPACING_L.dp))
+
         Text(
             text = item.title,
-            fontSize = (dimensions.usageValueTextSize.value * 0.9f).sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black,
             modifier = Modifier.weight(1f)
@@ -513,21 +478,20 @@ private fun ActionItemRow(
 
 @Composable
 private fun LogoutButton(
-    onLogoutClick: () -> Unit,
-    dimensions: com.app.buildingmanagement.fragment.ui.home.ResponsiveDimension
+    onLogoutClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(HomeConstants.CARD_CORNER_RADIUS.dp),
+        shape = RoundedCornerShape(SettingsConstants.CARD_CORNER_RADIUS.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = HomeConstants.CARD_ELEVATION_DEFAULT.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = SettingsConstants.CARD_ELEVATION_DEFAULT.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onLogoutClick() }
                 .heightIn(min = 64.dp)
-                .padding(dimensions.cardPadding),
+                .padding(SettingsConstants.SPACING_L.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -544,11 +508,11 @@ private fun LogoutButton(
                 )
             }
             
-            Spacer(modifier = Modifier.width(HomeConstants.SPACING_LARGE.dp))
-            
+            Spacer(modifier = Modifier.width(SettingsConstants.SPACING_L.dp))
+
             Text(
                 text = "Đăng xuất",
-                fontSize = (dimensions.usageValueTextSize.value * 0.9f).sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFD32F2F),
                 modifier = Modifier.weight(1f)
@@ -567,8 +531,3 @@ private fun LogoutButton(
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
-
-// All functions moved to separate files:
-// - UI Components: Available as composables in this file
-// - Bottom Sheets: Available in SettingsBottomSheets.kt  
-// - Utility Functions: Available in SettingsUtils.kt

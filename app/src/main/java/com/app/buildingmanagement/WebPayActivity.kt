@@ -19,10 +19,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.app.buildingmanagement.ui.theme.BuildingManagementTheme
 import com.google.firebase.auth.FirebaseAuth
@@ -31,6 +29,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.core.net.toUri
 
 class WebPayActivity : ComponentActivity() {
 
@@ -55,7 +54,6 @@ class WebPayActivity : ComponentActivity() {
         setContent {
             BuildingManagementTheme {
                 WebPayScreen(
-                    url = originalUrl,
                     onWebViewCreated = { webView ->
                         this.webView = webView
                         setupWebView(webView)
@@ -133,10 +131,7 @@ class WebPayActivity : ComponentActivity() {
 
         webView.setBackgroundColor(Color.WHITE)
 
-        // ✅ THÊM: Đảm bảo WebView fit system windows giống XML
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            webView.fitsSystemWindows = true
-        }
+        webView.fitsSystemWindows = true
 
         setupWebViewClient(webView)
         setupWebChromeClient(webView)
@@ -180,24 +175,24 @@ class WebPayActivity : ComponentActivity() {
 
                     loadingUrl.startsWith("https://") && isBankingUrl(loadingUrl) -> {
                         return try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(loadingUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, loadingUrl.toUri())
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
                             Toast.makeText(this@WebPayActivity, "Đang mở trong trình duyệt...", Toast.LENGTH_SHORT).show()
                             true
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             false
                         }
                     }
 
                     !loadingUrl.startsWith("http") && !loadingUrl.startsWith("https") && isBankingScheme(loadingUrl) -> {
                         return try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(loadingUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, loadingUrl.toUri())
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
                             Toast.makeText(this@WebPayActivity, "Đang chuyển đến app ngân hàng...", Toast.LENGTH_SHORT).show()
                             true
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             Toast.makeText(this@WebPayActivity, "Vui lòng cài đặt app ngân hàng để tiếp tục", Toast.LENGTH_LONG).show()
                             false
                         }
@@ -209,18 +204,18 @@ class WebPayActivity : ComponentActivity() {
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
                             true
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             false
                         }
                     }
 
                     !loadingUrl.startsWith("http") && !loadingUrl.startsWith("https") -> {
                         return try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(loadingUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, loadingUrl.toUri())
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
                             true
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             Toast.makeText(this@WebPayActivity, "Không thể mở ứng dụng liên kết", Toast.LENGTH_SHORT).show()
                             true
                         }
@@ -282,7 +277,7 @@ class WebPayActivity : ComponentActivity() {
                                 view.loadUrl(originalUrl!!)
                             }, 1000)
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Handle error silently
                     }
                 }
@@ -445,7 +440,7 @@ class WebPayActivity : ComponentActivity() {
                         if (contentLength == 0 || isHomePage) {
                             reloadOriginalPaymentUrl()
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         reloadOriginalPaymentUrl()
                     }
                 }
@@ -520,7 +515,7 @@ class WebPayActivity : ComponentActivity() {
 
     private fun handlePaymentSuccess(url: String) {
         try {
-            val uri = Uri.parse(url)
+            val uri = url.toUri()
             val orderCode = uri.getQueryParameter("orderCode")
             val status = uri.getQueryParameter("status")
             val paymentLinkId = uri.getQueryParameter("paymentLinkId")
@@ -550,7 +545,7 @@ class WebPayActivity : ComponentActivity() {
                 savePaymentToFirebase(orderCode, paymentLinkId)
             }
 
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             if (url.startsWith("myapp://payment-success") || url.contains("PAID")) {
                 savePaymentToFirebase(null, null)
             }
@@ -711,10 +706,8 @@ class WebPayActivity : ComponentActivity() {
 
 @Composable
 private fun WebPayScreen(
-    url: String?,
     onWebViewCreated: (WebView) -> Unit
 ) {
-    val context = LocalContext.current
 
     // ✅ Mimic ConstraintLayout behavior từ XML
     Box(
@@ -735,9 +728,7 @@ private fun WebPayScreen(
 
                     onWebViewCreated(this)
 
-                    (context as? WebPayActivity)?.let { activity ->
-                        activity.setupDownloadListener(this)
-                    }
+                    (context as? WebPayActivity)?.setupDownloadListener(this)
                 }
             },
             update = { webView ->
@@ -786,7 +777,7 @@ private fun WebPayActivity.setupDownloadListener(webView: WebView) {
 
             url != null && (url.startsWith("http://") || url.startsWith("https://")) -> {
                 try {
-                    val request = DownloadManager.Request(Uri.parse(url)).apply {
+                    val request = DownloadManager.Request(url.toUri()).apply {
                         setMimeType(mimeType)
                         addRequestHeader("User-Agent", userAgent)
 

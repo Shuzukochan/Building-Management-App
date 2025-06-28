@@ -164,14 +164,6 @@ class OtpActivity : ComponentActivity() {
                                     }
                                 }
                             },
-                            onBackspace = {
-                                if (otpValues[index].isEmpty() && index > 0) {
-                                    focusRequesters[index - 1].requestFocus()
-                                    otpValues = otpValues.toMutableList().apply {
-                                        this[index - 1] = ""
-                                    }
-                                }
-                            },
                             focusRequester = focusRequesters[index],
                             modifier = Modifier.padding(end = if (index < 5) 8.dp else 0.dp)
                         )
@@ -275,7 +267,6 @@ class OtpActivity : ComponentActivity() {
     private fun OtpInputField(
         value: String,
         onValueChange: (String) -> Unit,
-        onBackspace: () -> Unit,
         focusRequester: FocusRequester,
         modifier: Modifier = Modifier
     ) {
@@ -388,8 +379,8 @@ class OtpActivity : ComponentActivity() {
     private fun navigateToMain() {
         if (isFinishing) return
 
-        com.app.buildingmanagement.data.SharedDataManager.clearCache()
-        
+        com.app.buildingmanagement.data.FirebaseDataState.cleanup()
+
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

@@ -19,10 +19,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import com.app.buildingmanagement.R
-import com.app.buildingmanagement.fragment.ui.home.HomeConstants
-
 @Composable
 fun UsageCards(
     electricUsed: String,
