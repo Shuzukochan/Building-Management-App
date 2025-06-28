@@ -2,28 +2,29 @@ package com.app.buildingmanagement
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.navigation.NavController
-import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.setupWithNavController
-import com.app.buildingmanagement.databinding.ActivityMainBinding
+import androidx.navigation.compose.rememberNavController
 import com.app.buildingmanagement.firebase.FCMHelper
+import com.app.buildingmanagement.navigation.AppBottomNavigation
+import com.app.buildingmanagement.navigation.AppNavigationHost
+import com.app.buildingmanagement.ui.theme.BuildingManagementTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.ktx.Firebase
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
-    private var binding: ActivityMainBinding? = null
     private var auth: FirebaseAuth? = null
-    private var navController: NavController? = null
 
     private val fcmPrefs = "fcm_prefs"
     private val fcmTokenKey = "fcm_token"
@@ -41,9 +42,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupUI()
-        setupNavigation()
-        setupBottomNavigation()
-        preloadUserData()
+        initializeFirebaseData()
         handleNotificationIntent()
     }
 
@@ -59,9 +58,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding?.root)
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+        enableEdgeToEdge()
+        setContent {
+            BuildingManagementTheme {
+                val navController = rememberNavController()
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    bottomBar = { AppBottomNavigation(navController = navController) }
+                ) { innerPadding ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavigationHost(navController = navController)
+                    }
+                }
+            }
+        }
     }
 
     private fun redirectToSignIn() {
@@ -73,32 +88,6 @@ class MainActivity : AppCompatActivity() {
             finish()
         } catch (e: Exception) {
             finish()
-        }
-    }
-
-    private fun setupNavigation() {
-        try {
-            val navHostFragment = supportFragmentManager
-                .findFragmentById(R.id.mainFragmentContainer) as? NavHostFragment
-
-            navHostFragment?.let {
-                navController = it.navController
-            }
-        } catch (e: Exception) {
-            // Handle error silently
-        }
-    }
-
-    private fun setupBottomNavigation() {
-        try {
-            val bottomNav = binding?.bottomNavigation
-            val controller = navController
-
-            if (bottomNav != null && controller != null) {
-                bottomNav.setupWithNavController(controller)
-            }
-        } catch (e: Exception) {
-            // Handle error silently
         }
     }
 
@@ -164,8 +153,9 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try {
-            binding = null
-            navController = null
+            // Cleanup Firebase data state
+            com.app.buildingmanagement.data.FirebaseDataState.cleanup()
+
             auth = null
         } catch (e: Exception) {
             // Handle error silently
@@ -190,7 +180,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun clearAllMainActivityPreferences() {
         try {
-            val fcmPrefs = getSharedPreferences(fcmPrefs, MODE_PRIVATE)
+            val fcmPrefs = getSharedPreferences("fcm_prefs", MODE_PRIVATE)
             fcmPrefs.edit().clear().apply()
 
             val appSettings = getSharedPreferences("app_settings", MODE_PRIVATE)
@@ -203,7 +193,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun cleanupFCMOnLogout() {
         try {
-            FCMHelper.unsubscribeFromBuildingTopics(null)
+            // Lấy room number và loại bỏ prefix "Phòng " để đảm bảo topic name khớp
+            val cleanRoomNumber = com.app.buildingmanagement.data.FirebaseDataState.roomNumber.replace("Phòng ", "")
+            FCMHelper.unsubscribeFromBuildingTopics(cleanRoomNumber)
 
             val sharedPref = getSharedPreferences(fcmPrefs, MODE_PRIVATE)
             sharedPref.edit()
@@ -215,58 +207,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun preloadUserData() {
-        val currentUser = auth?.currentUser
-        val phone = currentUser?.phoneNumber ?: return
-
-        com.app.buildingmanagement.data.SharedDataManager.checkAndClearIfUserChanged()
-        
-        val cachedSnapshot = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomSnapshot()
-        val cachedRoomNumber = com.app.buildingmanagement.data.SharedDataManager.getCachedRoomNumber()
-
-        if (cachedSnapshot != null && cachedRoomNumber != null) {
-            return
+    private fun initializeFirebaseData() {
+        try {
+            // Initialize global Firebase data state
+            com.app.buildingmanagement.data.FirebaseDataState.initialize(this)
+        } catch (e: Exception) {
+            // Handle error silently
         }
-
-        val roomsRef = FirebaseDatabase.getInstance().getReference("rooms")
-
-        val timeoutHandler = Handler(Looper.getMainLooper())
-        val timeoutRunnable = Runnable {
-            // Timeout - continue without cache
-        }
-        timeoutHandler.postDelayed(timeoutRunnable, 10000)
-
-        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                timeoutHandler.removeCallbacks(timeoutRunnable)
-                
-                val currentUserCheck = auth?.currentUser
-                if (currentUserCheck?.phoneNumber != phone) {
-                    return
-                }
-                
-                for (roomSnapshot in snapshot.children) {
-                    val tenantsSnapshot = roomSnapshot.child("tenants")
-
-                    for (tenantSnapshot in tenantsSnapshot.children) {
-                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
-                        if (phoneInTenant == phone) {
-                            val roomNumber = roomSnapshot.key
-                            roomNumber?.let {
-                                com.app.buildingmanagement.data.SharedDataManager.setCachedData(
-                                    roomSnapshot, it, phone
-                                )
-                                return
-                            }
-                        }
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                timeoutHandler.removeCallbacks(timeoutRunnable)
-                // Handle error silently
-            }
-        })
     }
 }

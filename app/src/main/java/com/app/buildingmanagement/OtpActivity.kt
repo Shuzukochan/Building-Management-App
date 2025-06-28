@@ -5,20 +5,40 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
-import android.text.Editable
-import android.text.TextWatcher
-import android.view.View
+import android.os.Build
 import android.widget.Toast
-import androidx.core.content.ContextCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import com.app.buildingmanagement.databinding.ActivityOtpBinding
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.app.buildingmanagement.ui.theme.BuildingManagementTheme
 import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.*
 import java.util.concurrent.TimeUnit
 
-class OtpActivity : BaseActivity() {
-    private var binding: ActivityOtpBinding? = null
+class OtpActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var verificationId: String
     private lateinit var resendToken: PhoneAuthProvider.ForceResendingToken
@@ -29,45 +49,285 @@ class OtpActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityOtpBinding.inflate(layoutInflater)
-        setContentView(binding?.root)
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+        enableEdgeToEdge()
 
         auth = FirebaseAuth.getInstance()
-
         verificationId = intent.getStringExtra("verificationId") ?: ""
-        @Suppress("DEPRECATION")
-        resendToken = intent.getParcelableExtra("resendToken")!!
-        phoneNumber = intent.getStringExtra("phoneNumber")!!
+        phoneNumber = intent.getStringExtra("phoneNumber") ?: ""
+        resendToken = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("resendToken", PhoneAuthProvider.ForceResendingToken::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("resendToken")
+        }!!
 
-        addTextWatchers()
-        resendOTPTimer()
+        setContent {
+            BuildingManagementTheme {
+                OtpScreen()
+            }
+        }
+    }
 
-        binding?.btnSubmitOtp?.setOnClickListener {
-            if (!isAuthenticationInProgress) {
-                val typedOTP = getOtpFromFields()
+    @Composable
+    private fun OtpScreen() {
+        var otpValues by remember { mutableStateOf(List(6) { "" }) }
+        var isLoading by remember { mutableStateOf(false) }
+        var resendText by remember { mutableStateOf("") }
+        var resendVisible by remember { mutableStateOf(false) }
+        var resendEnabled by remember { mutableStateOf(false) }
+        var resendTextColor by remember { mutableStateOf(Color(0xFF6200EE)) }
 
-                if (typedOTP.length == 6) {
-                    val credential = PhoneAuthProvider.getCredential(verificationId, typedOTP)
-                    showProgressBar()
-                    isAuthenticationInProgress = true
-                    signInWithPhoneAuthCredential(credential)
+        val focusRequesters = remember { List(6) { FocusRequester() } }
+
+        // Start timer when screen is first composed
+        LaunchedEffect(Unit) {
+            startResendTimer { seconds ->
+                if (seconds > 0) {
+                    resendText = "Gửi lại mã sau $seconds giây"
+                    resendVisible = true
+                    resendEnabled = false
+                    resendTextColor = Color(0xFF757575)
                 } else {
-                    Toast.makeText(this, getString(R.string.otp_enter_complete), Toast.LENGTH_SHORT).show()
+                    resendText = "Gửi lại mã"
+                    resendVisible = true
+                    resendEnabled = true
+                    resendTextColor = Color(0xFF6200EE)
+                }
+            }
+
+            // Focus first input after a delay
+            kotlinx.coroutines.delay(100)
+            focusRequesters[0].requestFocus()
+        }
+
+        // Tái tạo ConstraintLayout bằng Box và Column
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .systemBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Logo Image - y chang XML (match_parent width, 280dp height, marginTop 30dp)
+                Image(
+                    painter = painterResource(id = R.drawable.forgot_password_pic),
+                    contentDescription = "OTP Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .padding(top = 30.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                // Title - y chang XML (match_parent width, marginStart 20dp)
+                Text(
+                    text = "Xác thực OTP",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold, // textStyle="bold"
+                    color = Color.Black,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp)
+                )
+
+                // Message - y chang XML (match_parent width, marginStart 20dp, marginTop 10dp)
+                Text(
+                    text = "Mã xác thực đã được gửi đến số điện thoại của bạn.",
+                    fontSize = 18.sp,
+                    color = Color.Black,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, top = 10.dp)
+                )
+
+                // OTP Input Layout - y chang LinearLayout (wrap_content, marginTop 20dp, gravity center)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    repeat(6) { index ->
+                        OtpInputField(
+                            value = otpValues[index],
+                            onValueChange = { newValue ->
+                                if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
+                                    otpValues = otpValues.toMutableList().apply {
+                                        this[index] = newValue
+                                    }
+
+                                    // Auto-focus next field
+                                    if (newValue.isNotEmpty() && index < 5) {
+                                        focusRequesters[index + 1].requestFocus()
+                                    }
+                                }
+                            },
+                            onBackspace = {
+                                if (otpValues[index].isEmpty() && index > 0) {
+                                    focusRequesters[index - 1].requestFocus()
+                                    otpValues = otpValues.toMutableList().apply {
+                                        this[index - 1] = ""
+                                    }
+                                }
+                            },
+                            focusRequester = focusRequesters[index],
+                            modifier = Modifier.padding(end = if (index < 5) 8.dp else 0.dp)
+                        )
+                    }
+                }
+
+                // Spacer để tạo khoảng cách thay vì dùng top padding trong Button
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Submit Button - giống hệt nút "Gửi mã OTP" bên SignInActivity
+                Button(
+                    onClick = {
+                        if (!isAuthenticationInProgress) {
+                            val otpCode = otpValues.joinToString("")
+                            if (otpCode.length == 6) {
+                                isLoading = true
+                                val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
+                                isAuthenticationInProgress = true
+                                signInWithPhoneAuthCredential(credential) { success ->
+                                    isLoading = false
+                                    isAuthenticationInProgress = false
+                                    if (!success) {
+                                        // Clear OTP fields on failure
+                                        otpValues = List(6) { "" }
+                                        focusRequesters[0].requestFocus()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(this@OtpActivity, "Vui lòng nhập đầy đủ mã OTP.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp) // button_height giống SignInActivity
+                        .padding(horizontal = 20.dp), // chỉ padding horizontal, không có top
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6200EE),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFBDBDBD)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Xác nhận",
+                            fontSize = 16.sp, // giống SignInActivity
+                            fontWeight = FontWeight.Medium // giống SignInActivity
+                        )
+                    }
+                }
+
+                // Resend TextView - y chang XML (wrap_content, marginTop 12dp, centered)
+                if (resendVisible) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = resendText,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold, // textStyle="bold"
+                            color = resendTextColor,
+                            modifier = Modifier.clickable(enabled = resendEnabled) {
+                                if (resendEnabled) {
+                                    resendVerificationCode()
+                                    // Clear OTP fields
+                                    otpValues = List(6) { "" }
+                                    startResendTimer { seconds ->
+                                        if (seconds > 0) {
+                                            resendText = "Gửi lại mã sau $seconds giây"
+                                            resendVisible = true
+                                            resendEnabled = false
+                                            resendTextColor = Color(0xFF757575)
+                                        } else {
+                                            resendText = "Gửi lại mã"
+                                            resendVisible = true
+                                            resendEnabled = true
+                                            resendTextColor = Color(0xFF6200EE)
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
+    }
 
-        binding?.resendTextView?.setOnClickListener {
-            if (binding?.resendTextView?.isEnabled == true) {
-                resendVerificationCode()
-                resendOTPTimer()
+    @Composable
+    private fun OtpInputField(
+        value: String,
+        onValueChange: (String) -> Unit,
+        onBackspace: () -> Unit,
+        focusRequester: FocusRequester,
+        modifier: Modifier = Modifier
+    ) {
+        // Tái tạo TextInputLayout + TextInputEditText y chang XML
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier
+                .size(50.dp) // width="50dp" từ XML
+                .focusRequester(focusRequester),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontSize = 22.sp, // textSize="22sp"
+                color = Color.Black,
+                textAlign = TextAlign.Center, // gravity="center"
+                fontWeight = FontWeight.Normal
+            ),
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .border(
+                            width = 1.dp, // boxStrokeWidth="1dp" (focused sẽ được handle bởi focus state)
+                            color = Color(0xFF6200EE), // boxStrokeColor="@color/textinput_border_focused"
+                            shape = RoundedCornerShape(8.dp) // til_radius
+                        )
+                        .background(
+                            color = Color.White,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    innerTextField()
+                }
             }
-        }
+        )
+    }
 
-        Handler(Looper.getMainLooper()).postDelayed({
-            binding?.otpInput1?.requestFocus()
-        }, 100)
+    private fun startResendTimer(onTick: (Int) -> Unit) {
+        countDownTimer?.cancel()
+
+        countDownTimer = object : CountDownTimer(60000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val seconds = (millisUntilFinished / 1000).toInt()
+                onTick(seconds)
+            }
+
+            override fun onFinish() {
+                onTick(0)
+            }
+        }.start()
     }
 
     private fun resendVerificationCode() {
@@ -81,54 +341,29 @@ class OtpActivity : BaseActivity() {
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
-    private fun resendOTPTimer() {
-        clearOtpFields()
-
-        countDownTimer?.cancel()
-
-        binding?.resendTextView?.visibility = View.VISIBLE
-        binding?.resendTextView?.isEnabled = false
-        binding?.resendTextView?.setTextColor(ContextCompat.getColor(this, R.color.nav_unselected))
-
-        countDownTimer = object : CountDownTimer(60000, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                val seconds = millisUntilFinished / 1000
-                binding?.resendTextView?.text = getString(R.string.otp_resend_timer, seconds)
-            }
-
-            override fun onFinish() {
-                binding?.resendTextView?.text = getString(R.string.otp_resend_button)
-                binding?.resendTextView?.isEnabled = true
-                binding?.resendTextView?.setTextColor(ContextCompat.getColor(this@OtpActivity, R.color.textinput_border_focused))
-            }
-        }.start()
-    }
-
-    private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
+    private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential, onComplete: (Boolean) -> Unit) {
         auth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
-                hideProgressBar()
-                isAuthenticationInProgress = false
-
                 if (task.isSuccessful) {
                     handleSuccessfulAuthentication()
+                    onComplete(true)
                 } else {
                     val currentUser = auth.currentUser
                     if (currentUser != null) {
                         handleSuccessfulAuthentication()
+                        onComplete(true)
                         return@addOnCompleteListener
                     }
 
                     val errorMessage = when (task.exception) {
                         is FirebaseAuthInvalidCredentialsException -> {
-                            getString(R.string.otp_invalid_code)
+                            "Mã OTP không hợp lệ, vui lòng thử lại."
                         }
-                        else -> getString(R.string.otp_auth_failed, task.exception?.message ?: "")
+                        else -> "Xác thực thất bại: ${task.exception?.message ?: ""}"
                     }
 
                     Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
-                    clearOtpFields()
-                    binding?.otpInput1?.requestFocus()
+                    onComplete(false)
                 }
             }
             .addOnSuccessListener {
@@ -143,7 +378,7 @@ class OtpActivity : BaseActivity() {
     private fun handleSuccessfulAuthentication() {
         if (isFinishing) return
 
-        Toast.makeText(this, getString(R.string.otp_login_success), Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show()
 
         Handler(Looper.getMainLooper()).postDelayed({
             navigateToMain()
@@ -165,19 +400,19 @@ class OtpActivity : BaseActivity() {
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
             if (!isAuthenticationInProgress) {
                 isAuthenticationInProgress = true
-                showProgressBar()
-                signInWithPhoneAuthCredential(credential)
+                signInWithPhoneAuthCredential(credential) { success ->
+                    isAuthenticationInProgress = false
+                }
             }
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
-            hideProgressBar()
             isAuthenticationInProgress = false
 
             val errorMessage = when (e) {
-                is FirebaseAuthInvalidCredentialsException -> getString(R.string.otp_phone_invalid)
-                is FirebaseTooManyRequestsException -> getString(R.string.otp_too_many_requests)
-                else -> getString(R.string.otp_verification_error, e.message ?: "")
+                is FirebaseAuthInvalidCredentialsException -> "Số điện thoại không hợp lệ."
+                is FirebaseTooManyRequestsException -> "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+                else -> "Lỗi xác thực: ${e.message ?: ""}"
             }
 
             Toast.makeText(this@OtpActivity, errorMessage, Toast.LENGTH_LONG).show()
@@ -189,68 +424,7 @@ class OtpActivity : BaseActivity() {
         ) {
             verificationId = newVerificationId
             resendToken = newResendToken
-            Toast.makeText(this@OtpActivity, getString(R.string.otp_resent), Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun getOtpFromFields(): String {
-        val otp = (binding?.otpInput1?.text.toString() +
-                binding?.otpInput2?.text.toString() +
-                binding?.otpInput3?.text.toString() +
-                binding?.otpInput4?.text.toString() +
-                binding?.otpInput5?.text.toString() +
-                binding?.otpInput6?.text.toString()).replace("\\s".toRegex(), "")
-
-        return otp
-    }
-
-    private fun clearOtpFields() {
-        binding?.otpInput1?.setText("")
-        binding?.otpInput2?.setText("")
-        binding?.otpInput3?.setText("")
-        binding?.otpInput4?.setText("")
-        binding?.otpInput5?.setText("")
-        binding?.otpInput6?.setText("")
-    }
-
-    private fun addTextWatchers() {
-        val inputs = listOf(
-            binding?.otpInput1,
-            binding?.otpInput2,
-            binding?.otpInput3,
-            binding?.otpInput4,
-            binding?.otpInput5,
-            binding?.otpInput6
-        )
-
-        for (i in inputs.indices) {
-            val current = inputs[i]
-            val next = if (i < inputs.size - 1) inputs[i + 1] else null
-            val prev = if (i > 0) inputs[i - 1] else null
-
-            current?.addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    val text = s.toString()
-                    if (text.length == 1) {
-                        next?.requestFocus()
-                    }
-                }
-
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            })
-
-            current?.setOnKeyListener { _, keyCode, event ->
-                if (event.action == android.view.KeyEvent.ACTION_DOWN && keyCode == android.view.KeyEvent.KEYCODE_DEL) {
-                    if (current.text.isNullOrEmpty()) {
-                        prev?.apply {
-                            setText("")
-                            requestFocus()
-                        }
-                    }
-                }
-                false
-            }
+            Toast.makeText(this@OtpActivity, "Mã OTP đã được gửi lại.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -271,6 +445,5 @@ class OtpActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         countDownTimer?.cancel()
-        binding = null
     }
 }

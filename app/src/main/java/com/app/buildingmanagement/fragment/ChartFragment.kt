@@ -1,43 +1,105 @@
 package com.app.buildingmanagement.fragment
 
 import android.app.DatePickerDialog
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.EditText
-import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.fragment.app.Fragment
-import com.app.buildingmanagement.databinding.FragmentChartBinding
-import com.app.buildingmanagement.MonthPickerDialog
-import com.app.buildingmanagement.data.SharedDataManager
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.BarData
-import com.github.mikephil.charting.data.BarDataSet
-import com.github.mikephil.charting.data.BarEntry
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.app.buildingmanagement.R
+import com.app.buildingmanagement.data.FirebaseDataState
+import com.app.buildingmanagement.fragment.ui.chart.UsageChart
+import com.app.buildingmanagement.fragment.ui.chart.ChartConstants
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalContext
 
-class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
+private data class PickerInfo(val isElectric: Boolean, val isFromDate: Boolean)
 
-    private var _binding: FragmentChartBinding? = null
-    private val binding get() = _binding!!
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChartDatePicker(
+    initialDateString: String,
+    formatter: SimpleDateFormat,
+    onDateSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val initialMillis = remember(initialDateString) {
+        try {
+            formatter.parse(initialDateString)?.time
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialMillis,
+        yearRange = (2020..Calendar.getInstance().get(Calendar.YEAR))
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val calendar = Calendar.getInstance().apply { timeInMillis = millis }
+                        onDateSelected(formatter.format(calendar.time))
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text("Chọn")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
+    }
+}
+
+class ChartFragment : Fragment() {
 
     private lateinit var auth: FirebaseAuth
     private lateinit var database: FirebaseDatabase
-    private lateinit var roomsRef: DatabaseReference
+    
+    private var selectedElectricMode by mutableStateOf("Tháng")
+    private var selectedWaterMode by mutableStateOf("Tháng")
+    private var fromDateElectric by mutableStateOf("")
+    private var toDateElectric by mutableStateOf("")
+    private var fromDateWater by mutableStateOf("")
+    private var toDateWater by mutableStateOf("")
+    
+    private var electricData by mutableStateOf<Map<String, Float>>(emptyMap())
+    private var waterData by mutableStateOf<Map<String, Float>>(emptyMap())
 
-    private var selectedElectricMode = "Tháng"
-    private var selectedWaterMode = "Tháng"
-
-    private val firebaseDateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private val firebaseMonthFormatter = SimpleDateFormat("yyyy-MM", Locale.getDefault())
     private val displayDateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN"))
     private val displayMonthFormatter = SimpleDateFormat("MM/yyyy", Locale("vi", "VN"))
 
@@ -45,226 +107,33 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentChartBinding.inflate(inflater, container, false)
-        return binding.root
+        return ComposeView(requireContext()).apply {
+            setContent {
+                FragmentChartScreen()
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         initializeFirebase()
-        setupSpinners()
-        setupDatePickers()
         setDefaultRanges()
-
-        SharedDataManager.addListener(this)
-        loadChartDataWithCache()
-    }
-
-    override fun onDataUpdated(roomSnapshot: DataSnapshot, roomNumber: String) {
-        if (_binding == null || !isAdded) return
-        loadChartDataFromSnapshot(roomSnapshot)
-    }
-
-    override fun onCacheReady(roomSnapshot: DataSnapshot, roomNumber: String) {
-        if (_binding == null || !isAdded) return
-        loadChartDataFromSnapshot(roomSnapshot)
+        loadChartData()
     }
 
     private fun initializeFirebase() {
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance()
-        roomsRef = database.getReference("rooms")
     }
 
-    private fun loadChartDataWithCache() {
-        val cachedSnapshot = SharedDataManager.getCachedRoomSnapshot()
-        val cachedRoomNumber = SharedDataManager.getCachedRoomNumber()
-
-        if (cachedSnapshot != null && cachedRoomNumber != null) {
-            loadChartDataFromSnapshot(cachedSnapshot)
-        } else {
-            loadChartDataFromFirebase()
-        }
-    }
-
-    private fun loadChartDataFromSnapshot(roomSnapshot: DataSnapshot) {
-        val electricMap = mutableMapOf<String, Int>()
-        val waterMap = mutableMapOf<String, Int>()
-
-        val historySnapshot = roomSnapshot.child("history")
-
-        for (dateSnapshot in historySnapshot.children) {
-            val dateKey = dateSnapshot.key ?: continue
-
-            val waterValue = dateSnapshot.child("water").getValue(Long::class.java)?.toInt()
-            val electricValue = dateSnapshot.child("electric").getValue(Long::class.java)?.toInt()
-
-            if (waterValue != null) {
-                waterMap[dateKey] = waterValue
-            }
-            if (electricValue != null) {
-                electricMap[dateKey] = electricValue
+    private fun loadChartData() {
+        FirebaseDataState.getHistoryData { electricMap, waterMap ->
+            if (isAdded) {
+                electricData = electricMap
+                waterData = waterMap
             }
         }
-
-        val fromDateElectric = binding.fromDateElectric.text.toString()
-        val toDateElectric = binding.toDateElectric.text.toString()
-        val fromDateWater = binding.fromDateWater.text.toString()
-        val toDateWater = binding.toDateWater.text.toString()
-
-        drawChart(electricMap, fromDateElectric, toDateElectric, selectedElectricMode, true)
-        drawChart(waterMap, fromDateWater, toDateWater, selectedWaterMode, false)
-    }
-
-    private fun loadChartDataFromFirebase() {
-        val phone = auth.currentUser?.phoneNumber ?: return
-
-        roomsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                for (roomSnapshot in snapshot.children) {
-                    val tenantsSnapshot = roomSnapshot.child("tenants")
-                    var phoneFound = false
-
-                    for (tenantSnapshot in tenantsSnapshot.children) {
-                        val phoneInTenant = tenantSnapshot.child("phone").getValue(String::class.java)
-                        if (phoneInTenant == phone) {
-                            phoneFound = true
-                            val roomNumber = roomSnapshot.key
-                            if (roomNumber != null) {
-                                SharedDataManager.setCachedData(roomSnapshot, roomNumber, phone)
-                            }
-                            loadChartDataFromSnapshot(roomSnapshot)
-                            break
-                        }
-                    }
-
-                    if (phoneFound) {
-                        break
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(requireContext(), "Lỗi tải dữ liệu: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
-    }
-
-    private fun setupSpinners() {
-        val adapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_spinner_dropdown_item,
-            listOf("Tháng", "Ngày")
-        )
-
-        binding.modeSpinnerElectric.adapter = adapter
-        binding.modeSpinnerWater.adapter = adapter
-        binding.modeSpinnerElectric.setSelection(0)
-        binding.modeSpinnerWater.setSelection(0)
-
-        binding.modeSpinnerElectric.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedElectricMode = adapter.getItem(position) ?: "Tháng"
-                setDefaultRange(true)
-                loadChartDataWithCache()
-            }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-
-        binding.modeSpinnerWater.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedWaterMode = adapter.getItem(position) ?: "Tháng"
-                setDefaultRange(false)
-                loadChartDataWithCache()
-            }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-    }
-
-    private fun setupDatePickers() {
-        setupDatePicker(binding.fromDateElectric, true)
-        setupDatePicker(binding.toDateElectric, true)
-        setupDatePicker(binding.fromDateWater, false)
-        setupDatePicker(binding.toDateWater, false)
-    }
-
-    private fun setupDatePicker(editText: EditText, isElectric: Boolean) {
-        editText.setOnClickListener {
-            val mode = if (isElectric) selectedElectricMode else selectedWaterMode
-            val calendar = Calendar.getInstance()
-
-            if (mode == "Tháng") {
-                showMonthPicker(editText, calendar)
-            } else {
-                showDatePicker(editText, calendar)
-            }
-        }
-    }
-
-    private fun showMonthPicker(editText: EditText, calendar: Calendar) {
-        val text = editText.text.toString()
-        val parts = text.split("/")
-
-        val selectedMonth = if (parts.size == 2) {
-            parts[0].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
-        } else {
-            calendar.get(Calendar.MONTH)
-        }
-
-        val selectedYear = if (parts.size == 2) {
-            parts[1].toIntOrNull() ?: calendar.get(Calendar.YEAR)
-        } else {
-            calendar.get(Calendar.YEAR)
-        }
-
-        try {
-            MonthPickerDialog(
-                context = requireContext(),
-                selectedMonth = selectedMonth,
-                selectedYear = selectedYear
-            ) { pickedMonth, pickedYear ->
-                calendar.set(Calendar.YEAR, pickedYear)
-                calendar.set(Calendar.MONTH, pickedMonth)
-                calendar.set(Calendar.DAY_OF_MONTH, 1)
-                editText.setText(displayMonthFormatter.format(calendar.time))
-                loadChartDataWithCache()
-            }.show()
-        } catch (e: Exception) {
-            DatePickerDialog(
-                requireContext(),
-                { _, year, month, _ ->
-                    calendar.set(year, month, 1)
-                    editText.setText(displayMonthFormatter.format(calendar.time))
-                    loadChartDataWithCache()
-                },
-                selectedYear,
-                selectedMonth,
-                1
-            ).show()
-        }
-    }
-
-    private fun showDatePicker(editText: EditText, calendar: Calendar) {
-        val text = editText.text.toString()
-        val date = try {
-            displayDateFormatter.parse(text)
-        } catch (e: Exception) {
-            null
-        }
-        if (date != null) calendar.time = date
-
-        DatePickerDialog(
-            requireContext(),
-            { _, year, month, day ->
-                calendar.set(year, month, day)
-                editText.setText(displayDateFormatter.format(calendar.time))
-                loadChartDataWithCache()
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
     }
 
     private fun setDefaultRanges() {
@@ -287,172 +156,842 @@ class ChartFragment : Fragment(), SharedDataManager.DataUpdateListener {
 
         if (isElectric) {
             if (selectedElectricMode == "Ngày") {
-                binding.fromDateElectric.setText(displayDateFormatter.format(fromDate))
-                binding.toDateElectric.setText(displayDateFormatter.format(toDate))
+                fromDateElectric = displayDateFormatter.format(fromDate)
+                toDateElectric = displayDateFormatter.format(toDate)
             } else {
-                binding.fromDateElectric.setText(displayMonthFormatter.format(fromDate))
-                binding.toDateElectric.setText(displayMonthFormatter.format(toDate))
+                fromDateElectric = displayMonthFormatter.format(fromDate)
+                toDateElectric = displayMonthFormatter.format(toDate)
             }
         } else {
             if (selectedWaterMode == "Ngày") {
-                binding.fromDateWater.setText(displayDateFormatter.format(fromDate))
-                binding.toDateWater.setText(displayDateFormatter.format(toDate))
+                fromDateWater = displayDateFormatter.format(fromDate)
+                toDateWater = displayDateFormatter.format(toDate)
             } else {
-                binding.fromDateWater.setText(displayMonthFormatter.format(fromDate))
-                binding.toDateWater.setText(displayMonthFormatter.format(toDate))
+                fromDateWater = displayMonthFormatter.format(fromDate)
+                toDateWater = displayMonthFormatter.format(toDate)
             }
         }
     }
 
-    private fun parseDateInput(value: String, mode: String): Date? {
-        return try {
-            if (mode == "Ngày") {
-                displayDateFormatter.parse(value)
-            } else {
-                val parts = value.split("/")
-                if (parts.size == 2) {
-                    firebaseMonthFormatter.parse("${parts[1]}-${parts[0]}")
-                } else null
+    @Composable
+    fun FragmentChartScreen() {
+        val configuration = LocalConfiguration.current
+        val screenHeight = configuration.screenHeightDp.dp
+        
+        val dimen = com.app.buildingmanagement.fragment.ui.home.responsiveDimension()
+        
+        val headerHeight = dimen.titleTextSize.value.dp + com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp
+        val totalPadding = dimen.mainPadding * 2
+        val navigationHeight = 80.dp
+        val cardSpacing = 16.dp
+        
+        val availableHeight = screenHeight - headerHeight - totalPadding - navigationHeight - 20.dp
+        val singleCardHeight = (availableHeight - cardSpacing) / 2
+        val finalChartHeight = singleCardHeight.coerceAtLeast(180.dp)
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8F9FA))
+                .padding(dimen.mainPadding)
+        ) {
+            Text(
+                text = "Thống kê tiêu thụ",
+                fontSize = dimen.titleTextSize,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1A1A1A)
+            )
+            
+            Spacer(modifier = Modifier.height(com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp))
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    ModernChartCard(
+                        title = "Tiêu thụ điện",
+                        icon = Icons.Default.Bolt,
+                        iconColor = ChartConstants.ElectricColor,
+                        selectedMode = selectedElectricMode,
+                        fromDate = fromDateElectric,
+                        toDate = toDateElectric,
+                        data = electricData,
+                        chartColor = ChartConstants.ElectricColor,
+                        chartHeight = finalChartHeight,
+                        onModeSelected = { mode ->
+                            selectedElectricMode = mode
+                            setDefaultRange(true)
+                            loadChartData()
+                        },
+                        onFromDateClick = { showDatePicker(true, true) },
+                        onToDateClick = { showDatePicker(true, false) }
+                    )
+                }
+                
+                Box(modifier = Modifier.weight(1f)) {
+                    ModernChartCard(
+                        title = "Tiêu thụ nước",
+                        icon = Icons.Default.WaterDrop,
+                        iconColor = ChartConstants.WaterColor,
+                        selectedMode = selectedWaterMode,
+                        fromDate = fromDateWater,
+                        toDate = toDateWater,
+                        data = waterData,
+                        chartColor = ChartConstants.WaterColor,
+                        chartHeight = finalChartHeight,
+                        onModeSelected = { mode ->
+                            selectedWaterMode = mode
+                            setDefaultRange(false)
+                            loadChartData()
+                        },
+                        onFromDateClick = { showDatePicker(false, true) },
+                        onToDateClick = { showDatePicker(false, false) }
+                    )
+                }
             }
+        }
+    }
+
+    @Composable
+    fun ModernChartCard(
+        title: String,
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        iconColor: Color,
+        selectedMode: String,
+        fromDate: String,
+        toDate: String,
+        data: Map<String, Float>,
+        chartColor: Color,
+        chartHeight: Dp = ChartConstants.ChartHeight,
+        onModeSelected: (String) -> Unit,
+        onFromDateClick: () -> Unit,
+        onToDateClick: () -> Unit
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFF2C3E50),
+                            maxLines = 1
+                        )
+                    }
+                    
+                    CompactModeSpinner(selectedMode, onModeSelected)
+                }
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CompactDateField(
+                        label = "Từ:",
+                        value = fromDate,
+                        onClick = onFromDateClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    CompactDateField(
+                        label = "Đến:",
+                        value = toDate,
+                        onClick = onToDateClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    UsageChart(
+                        title = "",
+                        data = data,
+                        fromDate = fromDate,
+                        toDate = toDate,
+                        mode = selectedMode,
+                        chartColor = chartColor,
+                        chartHeight = chartHeight,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun CompactModeSpinner(
+        selectedMode: String,
+        onModeSelected: (String) -> Unit
+    ) {
+        var expanded by remember { mutableStateOf(false) }
+        val modes = listOf("Tháng", "Ngày")
+        
+        Box {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = selectedMode,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                modes.forEach { mode ->
+                    DropdownMenuItem(
+                        text = { 
+                            Text(
+                                text = mode,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        onClick = {
+                            onModeSelected(mode)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun CompactDateField(
+        label: String,
+        value: String,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        Row(
+            modifier = modifier.clickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF666666),
+                modifier = Modifier.padding(end = 4.dp)
+            )
+            
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        Color(0xFFF5F5F5),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color(0xFF666666)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = value.ifEmpty { "Chọn ngày" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (value.isEmpty()) Color(0xFF999999) else Color(0xFF333333),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+
+    private fun showDatePicker(isElectric: Boolean, isFromDate: Boolean) {
+        val mode = if (isElectric) selectedElectricMode else selectedWaterMode
+        val calendar = Calendar.getInstance()
+
+        if (mode == "Tháng") {
+            showMonthPicker(isElectric, isFromDate, calendar)
+        } else {
+            showDayPicker(isElectric, isFromDate, calendar)
+        }
+    }
+
+    private fun showMonthPicker(isElectric: Boolean, isFromDate: Boolean, calendar: Calendar) {
+        val currentText = if (isElectric) {
+            if (isFromDate) fromDateElectric else toDateElectric
+        } else {
+            if (isFromDate) fromDateWater else toDateWater
+        }
+        
+        val parts = currentText.split("/")
+        val selectedMonth = if (parts.size == 2) {
+            parts[0].toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
+        } else {
+            calendar.get(Calendar.MONTH)
+        }
+        val selectedYear = if (parts.size == 2) {
+            parts[1].toIntOrNull() ?: calendar.get(Calendar.YEAR)
+        } else {
+            calendar.get(Calendar.YEAR)
+        }
+
+        DatePickerDialog(
+            requireContext(),
+            { _, year, month, _ ->
+                calendar.set(year, month, 1)
+                val formattedDate = displayMonthFormatter.format(calendar.time)
+                
+                if (isElectric) {
+                    if (isFromDate) fromDateElectric = formattedDate
+                    else toDateElectric = formattedDate
+                } else {
+                    if (isFromDate) fromDateWater = formattedDate
+                    else toDateWater = formattedDate
+                }
+                loadChartData()
+            },
+            selectedYear,
+            selectedMonth,
+            1
+        ).show()
+    }
+
+    private fun showDayPicker(isElectric: Boolean, isFromDate: Boolean, calendar: Calendar) {
+        val currentText = if (isElectric) {
+            if (isFromDate) fromDateElectric else toDateElectric
+        } else {
+            if (isFromDate) fromDateWater else toDateWater
+        }
+        
+        val date = try {
+            displayDateFormatter.parse(currentText)
         } catch (e: Exception) {
             null
         }
-    }
+        if (date != null) calendar.time = date
 
-    private fun drawChart(map: Map<String, Int>, fromDate: String, toDate: String, mode: String, isElectric: Boolean) {
-        val entries = mutableListOf<BarEntry>()
-        val labels = mutableListOf<String>()
-
-        val from = parseDateInput(fromDate, mode) ?: return
-        val to = parseDateInput(toDate, mode) ?: return
-
-        val cal = Calendar.getInstance()
-        cal.time = from
-
-        var index = 0f
-        while (!cal.time.after(to)) {
-            val key = if (mode == "Ngày") firebaseDateFormatter.format(cal.time) else firebaseMonthFormatter.format(cal.time)
-
-            val value = calculateConsumption(map, key, mode, cal)
-
-            entries.add(BarEntry(index, value.toFloat()))
-
-            val label = formatLabel(key, mode)
-            labels.add(label)
-
-            index++
-            if (mode == "Ngày") cal.add(Calendar.DAY_OF_MONTH, 1) else cal.add(Calendar.MONTH, 1)
-        }
-
-        val chart = if (isElectric) binding.electricChart else binding.waterChart
-        val label = if (isElectric) "Điện (kWh)" else "Nước (m³)"
-        val color = if (isElectric) "#FF6B35" else "#42A5F5"
-        setupChart(chart, entries, labels, label, color)
-    }
-
-    private fun calculateConsumption(map: Map<String, Int>, key: String, mode: String, cal: Calendar): Int {
-        return if (mode == "Ngày") {
-            val prevDay = Calendar.getInstance().apply {
-                time = cal.time
-                add(Calendar.DAY_OF_MONTH, -1)
-            }
-            val currKey = firebaseDateFormatter.format(cal.time)
-            val prevKey = firebaseDateFormatter.format(prevDay.time)
-            val curr = map[currKey]
-            val prev = map[prevKey]
-            if (prev != null && curr != null) curr - prev else 0
-        } else {
-            val prevMonth = Calendar.getInstance().apply {
-                time = cal.time
-                add(Calendar.MONTH, -1)
-            }
-            val prevMonthKey = firebaseMonthFormatter.format(prevMonth.time)
-            
-            val currentMonthData = map.filterKeys { it.startsWith(key) }.toSortedMap()
-            val prevMonthData = map.filterKeys { it.startsWith(prevMonthKey) }.toSortedMap()
-            
-            val currentValues = currentMonthData.values.toList()
-            val prevValues = prevMonthData.values.toList()
-            
-            val currentMaxValue = currentValues.maxOrNull() ?: 0
-            val prevMonthLastValue = prevValues.lastOrNull()
-            
-            if (prevMonthLastValue != null) {
-                currentMaxValue - prevMonthLastValue
-            } else {
-                val currentMinValue = currentValues.minOrNull() ?: 0
-                currentMaxValue - currentMinValue
-            }
-        }
-    }
-
-    private fun formatLabel(key: String, mode: String): String {
-        val parts = key.split("-")
-        return if (mode == "Ngày") {
-            "${parts[2]}/${parts[1]}"
-        } else {
-            val year = parts[0].takeLast(2)
-            "${parts[1]}/$year"
-        }
-    }
-
-    private fun setupChart(
-        chart: com.github.mikephil.charting.charts.BarChart,
-        entries: List<BarEntry>,
-        labels: List<String>,
-        label: String,
-        colorHex: String
-    ) {
-        val dataSet = BarDataSet(entries, label).apply {
-            color = Color.parseColor(colorHex)
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            setDrawValues(true)
-        }
-
-        chart.apply {
-            setBackgroundColor(Color.TRANSPARENT)
-            axisRight.isEnabled = false
-            axisLeft.axisMinimum = 0f
-            setTouchEnabled(false)
-            setPinchZoom(false)
-            isDoubleTapToZoomEnabled = false
-            data = BarData(dataSet)
-            setExtraOffsets(0f, 0f, 0f, 3f)
-
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                valueFormatter = IndexAxisValueFormatter(labels)
-                granularity = 1f
-                xAxis.yOffset = 12f
-                setDrawGridLines(false)
-                labelRotationAngle = 0f
-            }
-
-            axisLeft.apply {
-                axisMinimum = 0f
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0")
-                gridLineWidth = 0.5f
-                textColor = Color.parseColor("#666666")
-                textSize = 10f
-            }
-
-            description.text = ""
-            legend.apply {
-                isEnabled = true
-                verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP
-                horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.RIGHT
-                xOffset = -5f
-                textColor = Color.parseColor("#333333")
-            }
-            invalidate()
-        }
+        DatePickerDialog(
+            requireContext(),
+            { _, year, month, day ->
+                calendar.set(year, month, day)
+                val formattedDate = displayDateFormatter.format(calendar.time)
+                
+                if (isElectric) {
+                    if (isFromDate) fromDateElectric = formattedDate
+                    else toDateElectric = formattedDate
+                } else {
+                    if (isFromDate) fromDateWater = formattedDate
+                    else toDateWater = formattedDate
+                }
+                loadChartData()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        SharedDataManager.removeListener(this)
-        _binding = null
     }
+}
+
+// ============================================================================
+// EXTERNAL COMPOSABLE FUNCTION - LIKE HomeScreen()
+// ============================================================================
+
+@Composable
+fun ChartScreen() {
+    var selectedElectricMode by remember { mutableStateOf("Tháng") }
+    var selectedWaterMode by remember { mutableStateOf("Tháng") }
+    var fromDateElectric by remember { mutableStateOf("") }
+    var toDateElectric by remember { mutableStateOf("") }
+    var fromDateWater by remember { mutableStateOf("") }
+    var toDateWater by remember { mutableStateOf("") }
+
+    var electricData by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
+    var waterData by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
+
+    var pickerInfo by remember { mutableStateOf<PickerInfo?>(null) }
+
+    val displayDateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale("vi", "VN")) }
+    val displayMonthFormatter = remember { SimpleDateFormat("MM/yyyy", Locale("vi", "VN")) }
+
+    // Initialize data
+    LaunchedEffect(Unit) {
+        setDefaultRanges(
+            selectedElectricMode, selectedWaterMode,
+            displayDateFormatter, displayMonthFormatter
+        ) { fromElec, toElec, fromWat, toWat ->
+            fromDateElectric = fromElec
+            toDateElectric = toElec
+            fromDateWater = fromWat
+            toDateWater = toWat
+        }
+        FirebaseDataState.getHistoryData { elecData, watData ->
+            electricData = elecData
+            waterData = watData
+        }
+    }
+
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+
+    val dimen = com.app.buildingmanagement.fragment.ui.home.responsiveDimension()
+
+    val headerHeight = dimen.titleTextSize.value.dp + com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp
+    val totalPadding = dimen.mainPadding * 2
+    val navigationHeight = 80.dp
+    val cardSpacing = 16.dp
+
+    val availableHeight = screenHeight - headerHeight - totalPadding - navigationHeight - 20.dp
+    val singleCardHeight = (availableHeight - cardSpacing) / 2
+    val finalChartHeight = singleCardHeight.coerceAtLeast(180.dp)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .padding(dimen.mainPadding)
+    ) {
+        // Header
+        Text(
+            text = "Thống kê tiêu thụ",
+            fontSize = dimen.titleTextSize,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A1A)
+        )
+
+        Spacer(modifier = Modifier.height(com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp))
+
+        // Charts container
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Electric Chart Card
+            Box(modifier = Modifier.weight(1f)) {
+                StandaloneModernChartCard(
+                    title = "Tiêu thụ điện",
+                    icon = Icons.Default.Bolt,
+                    iconColor = ChartConstants.ElectricColor,
+                    selectedMode = selectedElectricMode,
+                    fromDate = fromDateElectric,
+                    toDate = toDateElectric,
+                    data = electricData,
+                    chartColor = ChartConstants.ElectricColor,
+                    chartHeight = finalChartHeight,
+                    onModeSelected = { mode ->
+                        selectedElectricMode = mode
+                        setDefaultRanges(
+                            mode, selectedWaterMode,
+                            displayDateFormatter, displayMonthFormatter
+                        ) { fromElec, toElec, fromWat, toWat ->
+                            fromDateElectric = fromElec
+                            toDateElectric = toElec
+                            fromDateWater = fromWat
+                            toDateWater = toWat
+                        }
+                        FirebaseDataState.getHistoryData { elecData, watData ->
+                            electricData = elecData
+                            waterData = watData
+                        }
+                    },
+                    onFromDateClick = { pickerInfo = PickerInfo(isElectric = true, isFromDate = true) },
+                    onToDateClick = { pickerInfo = PickerInfo(isElectric = true, isFromDate = false) }
+                )
+            }
+
+            // Water Chart Card
+            Box(modifier = Modifier.weight(1f)) {
+                StandaloneModernChartCard(
+                    title = "Tiêu thụ nước",
+                    icon = Icons.Default.WaterDrop,
+                    iconColor = ChartConstants.WaterColor,
+                    selectedMode = selectedWaterMode,
+                    fromDate = fromDateWater,
+                    toDate = toDateWater,
+                    data = waterData,
+                    chartColor = ChartConstants.WaterColor,
+                    chartHeight = finalChartHeight,
+                    onModeSelected = { mode ->
+                        selectedWaterMode = mode
+                         setDefaultRanges(
+                            selectedElectricMode, mode,
+                            displayDateFormatter, displayMonthFormatter
+                        ) { fromElec, toElec, fromWat, toWat ->
+                            fromDateElectric = fromElec
+                            toDateElectric = toElec
+                            fromDateWater = fromWat
+                            toDateWater = toWat
+                        }
+                        FirebaseDataState.getHistoryData { elecData, watData ->
+                            electricData = elecData
+                            waterData = watData
+                        }
+                    },
+                    onFromDateClick = { pickerInfo = PickerInfo(isElectric = false, isFromDate = true) },
+                    onToDateClick = { pickerInfo = PickerInfo(isElectric = false, isFromDate = false) }
+                )
+            }
+        }
+    }
+
+    // --- Date Picker Dialogs ---
+    pickerInfo?.let { info ->
+        val mode = if (info.isElectric) selectedElectricMode else selectedWaterMode
+        if (mode == "Tháng") {
+            val currentDate = if (info.isElectric) {
+                if (info.isFromDate) fromDateElectric else toDateElectric
+            } else {
+                if (info.isFromDate) fromDateWater else toDateWater
+            }
+            val cal = Calendar.getInstance()
+            if (currentDate.isNotEmpty()) {
+                try {
+                    cal.time = displayMonthFormatter.parse(currentDate)!!
+                } catch (e: Exception) { /* use default */ }
+            }
+
+            com.app.buildingmanagement.MonthPickerDialog(
+                selectedMonth = cal.get(Calendar.MONTH),
+                selectedYear = cal.get(Calendar.YEAR),
+                onMonthYearSelected = { month, year ->
+                    cal.set(Calendar.YEAR, year)
+                    cal.set(Calendar.MONTH, month)
+                    val formatted = displayMonthFormatter.format(cal.time)
+                    if (info.isElectric) {
+                        if (info.isFromDate) fromDateElectric = formatted else toDateElectric = formatted
+                    } else {
+                        if (info.isFromDate) fromDateWater = formatted else toDateWater = formatted
+                    }
+                    FirebaseDataState.getHistoryData { elecData, watData ->
+                        electricData = elecData
+                        waterData = watData
+                    }
+                    pickerInfo = null
+                },
+                onDismiss = { pickerInfo = null }
+            )
+        } else { // mode == "Ngày"
+            val currentDate = if (info.isElectric) {
+                if (info.isFromDate) fromDateElectric else toDateElectric
+            } else {
+                if (info.isFromDate) fromDateWater else toDateWater
+            }
+            
+            val pickerInitialDate = if (info.isElectric) {
+                if (info.isFromDate) fromDateElectric else toDateElectric
+            } else {
+                if (info.isFromDate) fromDateWater else toDateWater
+            }
+
+            ChartDatePicker(
+                initialDateString = pickerInitialDate,
+                formatter = displayDateFormatter,
+                onDateSelected = { formatted ->
+                    if (info.isElectric) {
+                        if (info.isFromDate) fromDateElectric = formatted else toDateElectric = formatted
+                    } else {
+                        if (info.isFromDate) fromDateWater = formatted else toDateWater = formatted
+                    }
+                    FirebaseDataState.getHistoryData { elecData, watData ->
+                        electricData = elecData
+                        waterData = watData
+                    }
+                    pickerInfo = null
+                },
+                onDismiss = { pickerInfo = null }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StandaloneModernChartCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    selectedMode: String,
+    fromDate: String,
+    toDate: String,
+    data: Map<String, Float>,
+    chartColor: Color,
+    chartHeight: Dp = ChartConstants.ChartHeight,
+    onModeSelected: (String) -> Unit,
+    onFromDateClick: () -> Unit,
+    onToDateClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color(0xFF2C3E50),
+                        maxLines = 1
+                    )
+                }
+                
+                StandaloneCompactModeSpinner(selectedMode, onModeSelected)
+            }
+            
+            // Date range
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StandaloneCompactDateField(
+                    label = "Từ:",
+                    value = fromDate,
+                    onClick = onFromDateClick,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                StandaloneCompactDateField(
+                    label = "Đến:",
+                    value = toDate,
+                    onClick = onToDateClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            // Chart
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                UsageChart(
+                    title = "",
+                    data = data,
+                    fromDate = fromDate,
+                    toDate = toDate,
+                    mode = selectedMode,
+                    chartColor = chartColor,
+                    chartHeight = chartHeight,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StandaloneCompactModeSpinner(
+    selectedMode: String,
+    onModeSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val modes = listOf("Tháng", "Ngày")
+    
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.height(32.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = selectedMode,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            modes.forEach { mode ->
+                DropdownMenuItem(
+                    text = { 
+                        Text(
+                            text = mode,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    onClick = {
+                        onModeSelected(mode)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StandaloneCompactDateField(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFF666666),
+            modifier = Modifier.padding(end = 4.dp)
+        )
+        
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .background(
+                    Color(0xFFF5F5F5),
+                    RoundedCornerShape(6.dp)
+                )
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = Color(0xFF666666)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = value.ifEmpty { "Chọn ngày" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (value.isEmpty()) Color(0xFF999999) else Color(0xFF333333),
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+// Helper function for setting default ranges
+private fun setDefaultRanges(
+    selectedElectricMode: String, 
+    selectedWaterMode: String,
+    displayDateFormatter: SimpleDateFormat,
+    displayMonthFormatter: SimpleDateFormat,
+    callback: (String, String, String, String) -> Unit
+) {
+    val calendar = Calendar.getInstance()
+    val toDate = calendar.time
+
+    // Electric
+    calendar.time = toDate
+    if (selectedElectricMode == "Ngày") {
+        calendar.add(Calendar.DAY_OF_MONTH, -6)
+    } else {
+        calendar.add(Calendar.MONTH, -5)
+    }
+    val fromElectric = if (selectedElectricMode == "Ngày") {
+        displayDateFormatter.format(calendar.time)
+    } else {
+        displayMonthFormatter.format(calendar.time)
+    }
+    val toElectric = if (selectedElectricMode == "Ngày") {
+        displayDateFormatter.format(toDate)
+    } else {
+        displayMonthFormatter.format(toDate)
+    }
+
+    // Water
+    calendar.time = toDate
+    if (selectedWaterMode == "Ngày") {
+        calendar.add(Calendar.DAY_OF_MONTH, -6)
+    } else {
+        calendar.add(Calendar.MONTH, -5)
+    }
+    val fromWater = if (selectedWaterMode == "Ngày") {
+        displayDateFormatter.format(calendar.time)
+    } else {
+        displayMonthFormatter.format(calendar.time)
+    }
+    val toWater = if (selectedWaterMode == "Ngày") {
+        displayDateFormatter.format(toDate)
+    } else {
+        displayMonthFormatter.format(toDate)
+    }
+
+    callback(fromElectric, toElectric, fromWater, toWater)
 }

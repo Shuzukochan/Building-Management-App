@@ -1,6 +1,7 @@
 package com.app.buildingmanagement.firebase
 
 import com.google.firebase.messaging.FirebaseMessaging
+import com.app.buildingmanagement.data.FirebaseDataState
 
 class FCMHelper {
     companion object {
@@ -19,7 +20,11 @@ class FCMHelper {
         }
 
         fun subscribeToUserBuildingTopics(roomNumber: String?) {
-            subscribeToTopic("all_residents")
+            // Subscribe to building ID topic (không có prefix)
+            val buildingId = FirebaseDataState.buildingId
+            if (!buildingId.isNullOrEmpty()) {
+                subscribeToTopic(buildingId)
+            }
 
             if (roomNumber != null) {
                 subscribeToTopic("room_$roomNumber")
@@ -29,7 +34,11 @@ class FCMHelper {
         }
 
         fun unsubscribeFromBuildingTopics(roomNumber: String?) {
-            unsubscribeFromTopic("all_residents")
+            // Unsubscribe from building ID topic (không có prefix)
+            val buildingId = FirebaseDataState.buildingId
+            if (!buildingId.isNullOrEmpty()) {
+                unsubscribeFromTopic(buildingId)
+            }
 
             if (roomNumber != null) {
                 unsubscribeFromTopic("room_$roomNumber")
