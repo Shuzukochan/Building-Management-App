@@ -35,6 +35,7 @@ import com.app.buildingmanagement.fragment.ui.home.MeterReadingSection
 import com.app.buildingmanagement.fragment.ui.home.TipsSection
 import com.app.buildingmanagement.fragment.ui.home.LoadingSkeleton
 import com.app.buildingmanagement.fragment.ui.home.responsiveDimension
+import com.app.buildingmanagement.fragment.ui.home.NotificationHistoryBottomSheet
 import androidx.core.graphics.toColorInt
 import androidx.core.content.edit
 
@@ -44,6 +45,10 @@ fun HomeScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
     var hasCheckedNotificationPermission by remember { mutableStateOf(false) }
+    
+    // Notification UI state
+    var showNotificationSheet by remember { mutableStateOf(false) }
+    var hasUnread by remember { mutableStateOf(false) }
 
     // Tạo permission launcher trước khi cần sử dụng
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -54,12 +59,17 @@ fun HomeScreen() {
         }
     }
 
-    // LaunchedEffect để kiểm tra notification permission khi screen load
+    // LaunchedEffect để kiểm tra notification permission & unread khi load
     LaunchedEffect(Unit) {
         if (!hasCheckedNotificationPermission && activity != null) {
             hasCheckedNotificationPermission = true
             kotlinx.coroutines.delay(500)
             checkNotificationPermission(activity, notificationPermissionLauncher)
+        }
+
+        // Kiểm tra unread ban đầu
+        checkUnreadNotifications { unread ->
+            hasUnread = unread
         }
     }
 
@@ -81,7 +91,13 @@ fun HomeScreen() {
                 .verticalScroll(rememberScrollState())
                 .padding(dimen.mainPadding)
         ) {
-            HeaderSection(roomNumber = roomNumber, titleTextSize = dimen.titleTextSize, subtitleTextSize = dimen.subtitleTextSize)
+            HeaderSection(
+                roomNumber = roomNumber, 
+                titleTextSize = dimen.titleTextSize, 
+                subtitleTextSize = dimen.subtitleTextSize,
+                onNotificationClick = { showNotificationSheet = true },
+                hasUnread = hasUnread
+            )
             Spacer(modifier = Modifier.height(com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp))
             UsageCards(
                 electricUsed = electricUsed,
@@ -104,6 +120,14 @@ fun HomeScreen() {
             TipsSection(dimen.tipsCardPadding)
             Spacer(modifier = Modifier.height(com.app.buildingmanagement.fragment.ui.home.HomeConstants.SPACING_XXL.dp))
         }
+    }
+    
+    // Notification Bottom Sheet
+    if (showNotificationSheet) {
+        NotificationHistoryBottomSheet(
+            onDismiss = { showNotificationSheet = false },
+            onUnreadChanged = { hasUnread = it }
+        )
     }
 }
 
@@ -219,6 +243,37 @@ private fun handleNotificationPermissionDenied(activity: androidx.activity.Compo
     appSettings.edit { putBoolean("notifications_enabled", false) }
 
     Toast.makeText(activity, "Bạn có thể bật thông báo trong Cài đặt nếu muốn nhận thông tin từ ban quản lý", Toast.LENGTH_LONG).show()
+}
+
+private fun checkUnreadNotifications(callback: (Boolean) -> Unit) {
+    val buildingId = FirebaseDataState.getCurrentBuildingId()
+    val roomId = FirebaseDataState.getCurrentRoomId()
+    if (buildingId == null || roomId == null) {
+        callback(false)
+        return
+    }
+
+    val ref = com.google.firebase.database.FirebaseDatabase.getInstance()
+        .getReference("buildings")
+        .child(buildingId)
+        .child("rooms")
+        .child(roomId)
+        .child("notifications")
+
+    ref.addListenerForSingleValueEvent(object : com.google.firebase.database.ValueEventListener {
+        override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+            var unread = false
+            for (child in snapshot.children) {
+                val isRead = child.child("isRead").getValue(Boolean::class.java) ?: false
+                if (!isRead) { unread = true; break }
+            }
+            callback(unread)
+        }
+
+        override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+            callback(false)
+        }
+    })
 }
 
 class HomeFragment : Fragment() {
