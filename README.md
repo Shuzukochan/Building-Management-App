@@ -113,14 +113,14 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 ### 🏠 Main Application Features
 
 <div align="center">
+  
+| Login | OTP Verification | Dashboard |
+|:---:|:---:|:---:|
+| <img width="250" alt="Login Screen" src="https://github.com/user-attachments/assets/6ed6183e-e709-448b-9c12-fe4239e916df" /> | <img width="250" alt="OTP Verification" src="https://github.com/user-attachments/assets/de974d35-143a-46dd-8eba-47bfa7f72e55" /> | <img width="250" alt="Home Dashboard" src="https://github.com/user-attachments/assets/910949da-3369-4158-8c1d-7d1d6002b61e" /> |
 
-**Login** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **OTP Verification** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Dashboard**
-
-<img width="250" alt="Login Screen" src="https://github.com/user-attachments/assets/6ed6183e-e709-448b-9c12-fe4239e916df" /> <img width="250" alt="OTP Verification" src="https://github.com/user-attachments/assets/de974d35-143a-46dd-8eba-47bfa7f72e55" /> <img width="250" alt="Home Dashboard" src="https://github.com/user-attachments/assets/910949da-3369-4158-8c1d-7d1d6002b61e" />
-
-**Statistics** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Payment** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Settings**
-
-<img width="250" alt="Chart Statistics" src="https://github.com/user-attachments/assets/ac60e07c-b8b9-4608-a745-fa6151aead51" /> <img width="250" alt="Payment Screen" src="https://github.com/user-attachments/assets/551fd0be-33fb-498e-9cc7-ea8aeff1254f" /> <img width="250" alt="Settings" src="https://github.com/user-attachments/assets/64616935-5ef5-4d0b-99cf-dd58ab0c94bd" />
+| Statistics | Payment | Settings |
+|:---:|:---:|:---:|
+| <img width="250" alt="Chart Statistics" src="https://github.com/user-attachments/assets/ac60e07c-b8b9-4608-a745-fa6151aead51" /> | <img width="250" alt="Payment Screen" src="https://github.com/user-attachments/assets/551fd0be-33fb-498e-9cc7-ea8aeff1254f" /> | <img width="250" alt="Settings" src="https://github.com/user-attachments/assets/64616935-5ef5-4d0b-99cf-dd58ab0c94bd" /> |
 
 </div>
 
@@ -128,9 +128,9 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 <div align="center">
 
-**Payment Setup** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **QR Code Payment** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Processing** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Payment Complete**
-
-<img width="200" alt="Payment Setup" src="https://github.com/user-attachments/assets/7517c080-0914-4efa-99d1-80aa1a845e3a" /> <img width="200" alt="QR Code Scan" src="https://github.com/user-attachments/assets/f27c4ceb-c208-4db8-b041-505e7f1b63d2" /> <img width="200" alt="Payment Processing" src="https://github.com/user-attachments/assets/22acab18-4121-405d-9ceb-1c6077d7a19f" /> <img width="200" alt="Payment Success" src="https://github.com/user-attachments/assets/6cf37c6e-9c33-430b-859a-45d960f738b2" />
+| Payment Setup | QR Code Payment | Processing | Payment Complete |
+|:---:|:---:|:---:|:---:|
+| <img width="200" alt="Payment Setup" src="https://github.com/user-attachments/assets/7517c080-0914-4efa-99d1-80aa1a845e3a" /> | <img width="200" alt="QR Code Scan" src="https://github.com/user-attachments/assets/f27c4ceb-c208-4db8-b041-505e7f1b63d2" /> | <img width="200" alt="Payment Processing" src="https://github.com/user-attachments/assets/22acab18-4121-405d-9ceb-1c6077d7a19f" /> | <img width="200" alt="Payment Success" src="https://github.com/user-attachments/assets/6cf37c6e-9c33-430b-859a-45d960f738b2" /> |
 
 </div>
 
