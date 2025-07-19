@@ -108,13 +108,11 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 - **PayOS Integration**: Secure payment processing
 - **ProGuard**: Code obfuscation in release builds
 
-## 📸 Screenshots
-
-### 🏠 Main Application Features
+## 🏠 Main Application Features
 
 <img width="2503" height="4000" alt="logn copy" src="https://github.com/user-attachments/assets/7f115fa2-6e12-43fc-901e-39df0efe7539" />
 
-### 💳 Payment Flow via PayOS
+## 💳 Payment Flow via PayOS
 
 <img width="3358" height="2000" alt="pay" src="https://github.com/user-attachments/assets/1e6d10d9-4c9c-4e7b-bb21-058e96635f0f" />
 
