@@ -112,9 +112,7 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ### 🏠 Main Application Features
 
-<img width="2503" height="4000" alt="logn copy" src="https://github.com/user-attachments/assets/78842953-17a7-4966-8d40-ba4325e07e54" />
-
-
+<img width="2503" height="4000" alt="logn copy" src="https://github.com/user-attachments/assets/7f115fa2-6e12-43fc-901e-39df0efe7539" />
 
 ### 💳 Payment Flow via PayOS
 
