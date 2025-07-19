@@ -116,14 +116,7 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ### 💳 Payment Flow via PayOS
 
-<div align="center">
-
-| Payment Setup | QR Code Payment | Processing | Payment Complete |
-|:---:|:---:|:---:|:---:|
-| <img width="200" alt="Payment Setup" src="https://github.com/user-attachments/assets/7517c080-0914-4efa-99d1-80aa1a845e3a" /> | <img width="200" alt="QR Code Scan" src="https://github.com/user-attachments/assets/f27c4ceb-c208-4db8-b041-505e7f1b63d2" /> | <img width="200" alt="Payment Processing" src="https://github.com/user-attachments/assets/22acab18-4121-405d-9ceb-1c6077d7a19f" /> | <img width="200" alt="Payment Success" src="https://github.com/user-attachments/assets/6cf37c6e-9c33-430b-859a-45d960f738b2" /> |
-
-</div>
-
+<img width="3358" height="2000" alt="pay" src="https://github.com/user-attachments/assets/1e6d10d9-4c9c-4e7b-bb21-058e96635f0f" />
 
 ## 🤝 Contributing
 
