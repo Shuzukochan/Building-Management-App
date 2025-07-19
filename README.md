@@ -110,7 +110,20 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ## 📸 Screenshots
 
-<!-- Add application screenshots here -->
+All
+<img width="793" height="1850" alt="logn" src="https://github.com/user-attachments/assets/6ed6183e-e709-448b-9c12-fe4239e916df" />
+<img width="793" height="1850" alt="otp" src="https://github.com/user-attachments/assets/de974d35-143a-46dd-8eba-47bfa7f72e55" />
+<img width="793" height="1850" alt="dashboard" src="https://github.com/user-attachments/assets/910949da-3369-4158-8c1d-7d1d6002b61e" />
+<img width="793" height="1850" alt="chart" src="https://github.com/user-attachments/assets/ac60e07c-b8b9-4608-a745-fa6151aead51" />
+<img width="793" height="1850" alt="payment" src="https://github.com/user-attachments/assets/551fd0be-33fb-498e-9cc7-ea8aeff1254f" />
+<img width="793" height="1850" alt="setting" src="https://github.com/user-attachments/assets/64616935-5ef5-4d0b-99cf-dd58ab0c94bd" />
+
+Thanh toán
+<img width="793" height="1850" alt="payment" src="https://github.com/user-attachments/assets/7517c080-0914-4efa-99d1-80aa1a845e3a" />
+<img width="793" height="1850" alt="qr" src="https://github.com/user-attachments/assets/f27c4ceb-c208-4db8-b041-505e7f1b63d2" />
+<img width="793" height="1850" alt="oke" src="https://github.com/user-attachments/assets/22acab18-4121-405d-9ceb-1c6077d7a19f" />
+<img width="793" height="1850" alt="paydone" src="https://github.com/user-attachments/assets/6cf37c6e-9c33-430b-859a-45d960f738b2" />
+
 
 ## 🤝 Contributing
 
