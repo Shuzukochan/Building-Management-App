@@ -112,7 +112,8 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ### 🏠 Main Application Features
 
-![Uploading logn copy.png…]()
+<img width="2503" height="4000" alt="logn copy" src="https://github.com/user-attachments/assets/78842953-17a7-4966-8d40-ba4325e07e54" />
+
 
 
 ### 💳 Payment Flow via PayOS
