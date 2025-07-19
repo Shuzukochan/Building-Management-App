@@ -112,17 +112,8 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ### 🏠 Main Application Features
 
-<div align="center">
-  
-| Login | OTP Verification | Dashboard |
-|:---:|:---:|:---:|
-| <img width="250" alt="Login Screen" src="https://github.com/user-attachments/assets/6ed6183e-e709-448b-9c12-fe4239e916df" /> | <img width="250" alt="OTP Verification" src="https://github.com/user-attachments/assets/de974d35-143a-46dd-8eba-47bfa7f72e55" /> | <img width="250" alt="Home Dashboard" src="https://github.com/user-attachments/assets/910949da-3369-4158-8c1d-7d1d6002b61e" /> |
+![Uploading logn copy.png…]()
 
-| Statistics | Payment | Settings |
-|:---:|:---:|:---:|
-| <img width="250" alt="Chart Statistics" src="https://github.com/user-attachments/assets/ac60e07c-b8b9-4608-a745-fa6151aead51" /> | <img width="250" alt="Payment Screen" src="https://github.com/user-attachments/assets/551fd0be-33fb-498e-9cc7-ea8aeff1254f" /> | <img width="250" alt="Settings" src="https://github.com/user-attachments/assets/64616935-5ef5-4d0b-99cf-dd58ab0c94bd" /> |
-
-</div>
 
 ### 💳 Payment Flow via PayOS
 
