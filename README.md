@@ -57,14 +57,13 @@ A modern building/apartment management application that helps residents track th
 ## 🚀 Installation
 
 ### Prerequisites
-- Android Studio Arctic Fox or newer
+- Android Studio
 - JDK 11
 - Android SDK 35
 
 ### Step 1: Clone repository
 ```bash
 git clone https://github.com/Shuzukochan/building-management-app.git
-cd building-management-app
 ```
 
 ### Step 2: Configure Firebase
