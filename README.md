@@ -122,7 +122,7 @@ FIREBASE_APPCHECK_DEBUG_TOKEN=your_debug_token_here
 
 ## 📄 License
 
-This project is distributed under the ISC License. See `LICENSE` file for more information.
+This project is distributed under the MIT License. See `LICENSE` file for more information.
 
 ## 📞 Support
 
